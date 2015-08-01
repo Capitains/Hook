@@ -39,13 +39,17 @@ def test_repo(id, repository, branch):
     background_logs[id] = []
 
     background_proc[id] = subprocess.Popen(
-        ["python", SCRIPT_PATH + "cts.py", id, repository, branch, TEST_PATH],
+        ["/usr/bin/python3", SCRIPT_PATH + "__init__.py", id, repository, branch, TEST_PATH],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         shell=False
     )
 
     lines_iterator = iter(background_proc[id].stdout.readline, b"")
+    for line in lines_iterator:
+        background_logs[id].append(line)
+
+    lines_iterator = iter(background_proc[id].stderr.readline, b"")
     for line in lines_iterator:
         background_logs[id].append(line)
 
@@ -75,8 +79,7 @@ def status(id):
         abort(404)
 
     if id in background_logs:
-        print(background_logs)
-        test = "".join([line.decode("utf-8") for line in background_logs[id]])
+        test = [line.decode("utf-8") for line in background_logs[id]]
     else:
         test = ""
 
