@@ -1,6 +1,15 @@
-import tracking
 from lxml import etree
 import MyCapytain.resources.texts.local
+import os
+
+import jingtrang
+import pkg_resources
+import subprocess
+
+curr_dir = os.path.dirname(__file__)
+
+EPIDOC = os.path.join(curr_dir, "../data/external/tei-epidoc.rng")
+JING = pkg_resources.resource_filename("jingtrang", "jing.jar")
 
 class CTSUnit(object):
     """ CTS testing object
@@ -23,6 +32,9 @@ class CTSUnit(object):
     
     def log(self, message):
         self.__logs.append(">>>>>> "+ message )
+    
+    def error(self, error):
+        self.__logs.append(">>>>>> "+ str(type(error)) + " : " + str(error) )
 
     def flush(self):
         self.__archives = self.__archives + self.__logs
@@ -44,7 +56,7 @@ class CTSUnit(object):
             f.close()
         except Exception as e:
             self.testable = False
-            self.log(e.value)
+            self.error(e)
         finally:
             yield self.testable
 
@@ -63,6 +75,24 @@ class CTSUnit(object):
         self.log(str(len(self.Text.citation)) + " citations found")
         yield len(self.Text.citation) > 0
 
+    def epidoc(self):
+        test = subprocess.Popen(
+            ["java", "-jar", JING, EPIDOC, self.path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=False
+        )
+
+        out, error = test.communicate()
+
+        if len(out) > 0:
+            for error in out.decode("utf-8").split("\n"):
+                self.log(error)
+        yield len(out) == 0 and len(error) == 0
+
+    def tei(self):
+        pass
+
     def passages(self):
         for i in range(0, len(self.Text.citation)):
             passages = self.Text.getValidReff(level=i+1)
@@ -71,12 +101,16 @@ class CTSUnit(object):
             yield status
 
     def test(self):
-        tests = ["parsable", "capitain", "refsDecl", "passages"]
+        """ Test a file with various checks
+        """
+        tests = ["parsable", "capitain", "refsDecl", "passages", "epidoc"]
+        stop = []
         human = {
             "parsable" : "File parsing",
             "capitain" : "File ingesting in MyCapytain",
             "refsDecl" : "RefsDecl parsing",
-            "passages" : "Passage level parsing"
+            "passages" : "Passage level parsing",
+            "epidoc" : "Epidoc DTD validation"
         }
         for test in tests:
             # Show the logs and return the status
@@ -88,5 +122,5 @@ class CTSUnit(object):
                     self.flush()
             except Exception as E:
                 status = False
-                self.log(E.value)
+                self.error(E)
                 yield (human[test], status, self.logs)

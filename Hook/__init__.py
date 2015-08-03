@@ -39,7 +39,7 @@ def test_repo(id, repository, branch):
     background_logs[id] = []
 
     background_proc[id] = subprocess.Popen(
-        ["/usr/bin/python3", SCRIPT_PATH + "__init__.py", id, repository, branch, TEST_PATH],
+        ["/usr/bin/python3", SCRIPT_PATH + "__init__.py", "-v", id, repository, branch, TEST_PATH],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         shell=False
