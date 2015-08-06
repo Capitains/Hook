@@ -41,7 +41,7 @@ def test_repo(id, repository, branch):
     background_logs[id] = []
 
     background_proc[id] = subprocess.Popen(
-        ["/usr/bin/python3", SCRIPT_PATH + "__init__.py", "-v", id, repository, branch, TEST_PATH],
+        ["/usr/bin/python3", SCRIPT_PATH + "__init__.py", "-n", id, repository, branch, TEST_PATH],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         shell=False
@@ -90,11 +90,14 @@ def status(username, reponame, branch, id):
     if id in background_logs:
         logs = [line.decode("utf-8") for line in background_logs[id]]
     else:
-        logs = ""
-
+        logs = []
     if "====JSON====\n" in logs:
-        report = json.loads(logs[-1])
-        logs = logs[:-2]
+        json_index = logs.index("====JSON====\n")
+        if len(logs) > json_index + 2: # 2 Because index are 0 based and we need json header line and the following line
+            report = json.loads(logs[json_index+1])
+            logs = logs[:json_index]
+        else:
+            report = None
     else:
         report = None
 
@@ -172,8 +175,8 @@ def save_logs(report, logs, username, reponame, branch, uuid):
     for document_name, document_test in report["units"].items():
         document_mongo = DocTest(
             path=document_name,
-            status=report["status"],
-            coverage=report["coverage"]
+            status=document_test["status"],
+            coverage=document_test["coverage"]
         )
 
         for test_name, test_status in document_test["units"].items():

@@ -2,21 +2,21 @@ import datetime
 from app import db
 
 
-class DocLogs(db.Document):
+class DocLogs(db.EmbeddedDocument):
     """ Unittest level logs """
     title  = db.StringField(max_length=255, required=True)
     status = db.BooleanField(required=False)
 
 
-class DocTest(db.Document):
+class DocTest(db.EmbeddedDocument):
     """ Complete Document level status"""
     path = db.StringField(required=True)
     status = db.BooleanField(required=True)
     coverage = db.FloatField(min_value=0.0, max_value=100.0, required=True)
-    logs = db.ListField(db.EmbeddedDocumentField("DocLogs"))
+    logs = db.EmbeddedDocumentListField(DocLogs)
 
 
-class RepoLogs(db.Document):
+class RepoLogs(db.EmbeddedDocument):
     text = db.StringField(required=True)
 
 
@@ -30,5 +30,9 @@ class RepoTest(db.Document):
     branch = db.StringField(required=True)
     status = db.BooleanField(required=True)
     coverage = db.FloatField(min_value=0.0, max_value=100.0, required=True)
-    logs = db.ListField(db.EmbeddedDocumentField("RepoLogs"))
-    units = db.ListField(db.EmbeddedDocumentField("DocTest"))
+    logs = db.EmbeddedDocumentListField(RepoLogs)
+    units = db.EmbeddedDocumentListField(DocTest)
+    
+    meta = {
+        'ordering': ['-run_at']
+    }

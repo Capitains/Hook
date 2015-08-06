@@ -112,8 +112,6 @@ prnt(">>> Finished tests !")
 success = len([True for status in passing.values() if status is True])
 prnt("{0} over {1} texts have fully passed the tests".format(success, len(passing)))
 
-import json
-
 prnt("====JSON====")
 prnt(json.dumps({
     "status" : success == len(passing),
@@ -123,3 +121,5 @@ prnt(json.dumps({
 
 if success != len(passing):
     exit(1)
+else:
+    exit(0)

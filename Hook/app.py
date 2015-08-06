@@ -13,3 +13,4 @@ db = MongoEngine(app)
 
 from controllers import test
 from controllers import ui
+from controllers import badges
