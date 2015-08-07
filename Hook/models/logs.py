@@ -27,11 +27,13 @@ class RepoTest(db.Document):
     username = db.StringField(required=True)
     reponame = db.StringField(required=True)
     userrepo = db.StringField(required=True)
-    branch = db.StringField(required=True)
-    status = db.BooleanField(required=True)
-    coverage = db.FloatField(min_value=0.0, max_value=100.0, required=True)
+    branch = db.StringField(default=None)
+    status = db.BooleanField(default=None)
+    coverage = db.FloatField(min_value=0.0, max_value=100.0, default=None)
     logs = db.EmbeddedDocumentListField(RepoLogs)
     units = db.EmbeddedDocumentListField(DocTest)
+    total = db.IntField(default=1)
+    tested = db.IntField(default=0)
     
     meta = {
         'ordering': ['-run_at']

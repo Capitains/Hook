@@ -69,7 +69,7 @@ def do_test(f):
         results[f] = cover(results[f])
         passing[f.split("/")[-1]] = True == results[f]["status"]
 
-    return logs
+    return logs + ["test+=1"]
 
 """
     Initialization and parameters recovering
@@ -94,13 +94,15 @@ verbose = "v" in opts
 results = defaultdict(dict)
 passing = defaultdict(dict)
 
+files = repo.find_files(directory)
 
 prnt(">>> Starting tests !")
+prnt("files="+str(len(files)))
 
 # We load a thread pool which has 5 maximum workers
 with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
     # We create a dictionary of tasks which 
-    tasks = {executor.submit(do_test, target_file): target_file for target_file in repo.find_files(directory)}
+    tasks = {executor.submit(do_test, target_file): target_file for target_file in files}
     # We iterate over a dictionary of completed tasks
     for future in concurrent.futures.as_completed(tasks):
         logs = future.result()

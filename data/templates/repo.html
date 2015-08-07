@@ -1,0 +1,146 @@
+{% extends "container.html" %}
+
+
+{% block body %}
+{% include "header.html" %}
+<div style="padding-top: 50px;">
+    <div class="container">
+        <div class="row">
+            <nav class="col-md-3">
+            </nav>
+            <section class="col-md-9">
+                <header>
+                    <h1>
+                        {{username}}/{{reponame}}
+                        <img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame) }}" />
+                        <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame) }}" />
+                    </h1>
+                </header>
+                <div class="row">
+                    <div class="col-md-4">
+                        <h2>Coverage settings</h2>
+
+                    </div>
+                    <div class="col-md-8">
+                        <h2>History and progression</h2>
+                        <div id="history"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <h2>Past tests</h2>
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Branch</th>
+                                    <th>Status</th>
+                                    <th>Coverage</th>
+                                    <th>Files tested</th>
+                                    <th>Files passing</th>
+                                    <th>ID</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for test in running %}
+
+                                    <tr class="warning">
+                                        <td>{{test.run_at}}</td>
+                                        <td>{{test.branch}}</td>
+                                        <td colspan="4">
+                                          <div class="progress">
+                                            <div class="progress-bar" role="progressbar" aria-valuenow="{{test.percent}}" aria-valuemin="0" aria-valuemax="100" style="width: {{test.percent}}%;">
+                                            {{test.percent}}%
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td>{{test.uuid}}</td>
+                                    </tr>
+                                {% endfor %}
+                                {% for test in tests %}
+
+                                    <tr>
+                                        <td>{{test.run_at}}</td>
+                                        <td>{{test.branch}}</td>
+                                        <td><img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame, branch=test.branch, uuid=test.uuid) }}" /></td>
+                                        <td><img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame, branch=test.branch, uuid=test.uuid) }}" /></td>
+                                        <td>{{test.total}}</td>
+                                        <td>{{test.tested}}</td>
+                                        <td>{{test.uuid}}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+<script>
+
+var margin = {top: 20, right: 20, bottom: 30, left: 20},
+    width = parseInt(d3.select("#history").style("width")) - margin.left - margin.right - Math.floor(parseInt(d3.select("#history").style("width"))/10),
+    height = parseInt(d3.select("#history").style("width"))/16*9 - margin.top -margin.bottom;
+
+var parseDate = d3.time.format("%a, %d %b %Y %X").parse;
+
+var x = d3.time.scale()
+    .range([0, width]);
+
+var y = d3.scale.linear()
+    .range([height, 0])
+    .domain([0,100]);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom");
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left");
+
+var line = d3.svg.line()
+    .x(function(d) { return x(Date.parse(d.run_at)); })
+    .y(function(d) { return y(Math.floor(d.coverage)); });
+
+
+var svg = d3.select("#history").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+d3.json("{{ url_for('api_repo_history', username=username, reponame=reponame) }}", function(error, data) {
+  if (error) throw error;
+
+  data = data.logs;
+
+  x.domain(d3.extent(data, function(d) { return Date.parse(d.run_at); }));
+  y.domain(d3.extent(data, function(d) { console.log(Math.floor(d.coverage)); return Math.floor(d.coverage); }));
+
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis);
+
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis)
+    .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 6)
+      .attr("dy", ".71em")
+      .style("text-anchor", "end")
+      .text("Coverage (%)");
+
+  svg.append("path")
+      .datum(data)
+      .attr("class", "line")
+      .attr("d", line);
+});
+
+</script>
+{% endblock %}
