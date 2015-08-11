@@ -67,3 +67,121 @@ input[type="password"] {
   stroke: steelblue;
   stroke-width: 1.5px;
 }
+
+ol.logs {
+    counter-reset:li; /* Initiate a counter */
+    margin-left:0; /* Remove the default left margin */
+    padding-left:0; /* Remove the default left padding */
+    background-color:#1d1f21; color:#f0c674; margin:20px; border-radius:20px;
+    padding:15px;
+
+    font-family: monospace;
+    font-size:0.8em;
+    max-height:400px;
+    overflow: auto;
+}
+ol.logs > li {
+    position:relative; /* Create a positioning context */
+    margin:0 0 0px 2em; /* Give each list item a left margin to make room for the numbers */
+    padding:1px 2px; /* Add some spacing around the content */
+    list-style:none; /* Disable the normal item numbering */
+}
+ol.logs i {
+  padding-left:10px;
+}
+ol.logs .success {
+  color:#8c9440;
+}
+ol.logs .failure {
+  color:#a54242;
+}
+ol.logs > li:before {
+    content:counter(li); /* Use the counter as content */
+    counter-increment:li; /* Increment the counter by 1 */
+    /* Position and style the number */
+    position:absolute;
+    top:-2px;
+    left:-2em;
+    -moz-box-sizing:border-box;
+    -webkit-box-sizing:border-box;
+    box-sizing:border-box;
+    width:2em;
+    /* Some space between the number and the content in browsers that support
+       generated content but not positioning it (Camino 2 is one example) */
+    margin-right:8px;
+    padding:4px;
+    color:#666;
+    text-align:center;
+}
+
+img.user {
+  border-radius: 25px;
+  height:50px;
+  width:50px;
+}
+
+img.user-20 {
+  border-radius: 10px;
+  height:20px;
+  width:20px;
+  margin:0 auto;
+  display: block
+}
+
+.card {
+  background-color: #fafaf8;
+  padding:0.2em 1em;
+  border-radius:1em;
+  position: relative;
+  padding-left:2.9em;
+  height: 5em;
+  color:gray;
+  font-family: "Source Sans Pro",Helvetica,sans-serif;
+}
+
+.card .dd {
+  font-weight:bold;
+}
+.card .dt {
+  font-weight:normal;
+}
+
+.card > .left {
+  position: absolute;
+  width:1.8em;
+  background-color: #777;
+  top:0;
+  left:0;
+  border-top-left-radius:1em;
+  border-bottom-left-radius:1em;
+  height:100%;
+  line-height: 4em;
+  text-align: center;
+  color:#fff;
+  font-size: 1.2em;
+}
+
+.card > .left.success {
+  background-color: #5cb85c;
+}
+.card > .left.failure {
+  background-color: #d9534f;
+}
+
+h1 {
+  color:grey;
+  font-size: 1.9em;
+  padding:5px;
+}
+h1 .pull-left {
+  margin-right:10px;
+}
+h1 img {
+  float:right;
+  margin:5px;
+}
+h2 {
+  color:grey;
+  font-size: 1.5em;
+  padding:5px;
+}

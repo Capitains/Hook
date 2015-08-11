@@ -237,7 +237,7 @@ def update(report, logs, username, reponame, branch, uuid, nb_files=1, tested=0)
 
     repo_test.save()
 
-def launch(username, reponame, ref):
+def launch(username, reponame, ref, creator, gravatar, sha):
     """ Launch test into multithread.
 
     :param username: Name of the user
@@ -260,7 +260,11 @@ def launch(username, reponame, ref):
     uuid = str(uuid4())
     background_status[uuid] = False
 
-    repo = RepoTest.Get_or_Create(uuid, username, reponame, ref, save=True)
+    repo = RepoTest.Get_or_Create(uuid, username, reponame, ref)
+    repo.user = creator
+    repo.gravatar = gravatar
+    repo.sha = sha
+    repo.save()
 
     t = threading.Thread(target=lambda: test(uuid, username + "/" + reponame, ref))
     t.start()
