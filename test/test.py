@@ -9,6 +9,7 @@ import subprocess
 curr_dir = os.path.dirname(__file__)
 
 EPIDOC = os.path.join(curr_dir, "../data/external/tei-epidoc.rng")
+TEI_ALL = os.path.join(curr_dir, "../data/external/tei_all.rng")
 JING = pkg_resources.resource_filename("jingtrang", "jing.jar")
 
 class CTSUnit(object):
@@ -91,7 +92,19 @@ class CTSUnit(object):
         yield len(out) == 0 and len(error) == 0
 
     def tei(self):
-        pass
+        test = subprocess.Popen(
+            ["java", "-jar", JING, TEI_ALL, self.path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=False
+        )
+
+        out, error = test.communicate()
+
+        if len(out) > 0:
+            for error in out.decode("utf-8").split("\n"):
+                self.log(error)
+        yield len(out) == 0 and len(error) == 0
 
     def passages(self):
         for i in range(0, len(self.Text.citation)):
@@ -103,14 +116,15 @@ class CTSUnit(object):
     def test(self):
         """ Test a file with various checks
         """
-        tests = ["parsable", "capitain", "refsDecl", "passages", "epidoc"]
+        tests = ["parsable", "capitain", "refsDecl", "passages", "tei"]
         stop = []
         human = {
             "parsable" : "File parsing",
             "capitain" : "File ingesting in MyCapytain",
             "refsDecl" : "RefsDecl parsing",
             "passages" : "Passage level parsing",
-            "epidoc" : "Epidoc DTD validation"
+            "epidoc" : "Epidoc DTD validation",
+            "tei" : "TEI DTD Validation"
         }
         for test in tests:
             # Show the logs and return the status
