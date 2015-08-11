@@ -9,6 +9,7 @@ import subprocess
 from uuid import uuid4
 import git
 from utils import Progress
+import shutil
 
 # General use libraries
 import json
@@ -16,6 +17,7 @@ import re
 
 # Database imports
 from models.logs import *
+    
 
 """
     Dictionaries for status checking
@@ -166,6 +168,7 @@ def read(username, reponame, branch, uuid):
     update(report, logs, username, reponame, branch, uuid, nb_files, tested)
 
     if report is not None:
+        remove(uuid)
         del background_git[uuid]
         del background_status[uuid]
         del background_logs[uuid]
@@ -264,3 +267,12 @@ def launch(username, reponame, ref):
     watch(uuid, username + "/" + reponame, ref)
 
     return uuid, repo.branch_slug
+
+def remove(uuid):
+    """ Remove the cloned folder of the uuid identified repo
+
+    :param uuid:
+    :type uuid:
+    """
+    print(uuid)
+    shutil.rmtree(TEST_PATH + "/" + str(uuid))

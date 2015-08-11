@@ -5,7 +5,7 @@ import controllers.test
 import models.logs
 import json
 
-@app.route('/api/rest/v1.0/code/<username>/<reponame>/test', defaults= { "branch" : None})
+# @app.route('/api/rest/v1.0/code/<username>/<reponame>/test', defaults= { "branch" : None})
 def api_test_generate(username, reponame, branch=None):
     """ Generate a test on the machine
 
@@ -18,8 +18,6 @@ def api_test_generate(username, reponame, branch=None):
 
     .:warning:. DISABLED
     """
-    if True:
-        return True
     if branch is None:
         branch = request.form.get("branch")
 
