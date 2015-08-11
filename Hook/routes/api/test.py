@@ -5,8 +5,8 @@ import controllers.test
 import models.logs
 import json
 
-@app.route('/api/rest/v1.0/code/<username>/<reponame>/test', defaults= { "branch" : None})
-def api_test_generate(username, reponame, branch=None):
+# @app.route('/api/rest/v1.0/code/<username>/<reponame>/test', defaults= { "branch" : None})
+def api_test_generate(username, reponame, branch, creator=None, gravatar=None, sha=None):
     """ Generate a test on the machine
 
     :param username: Name of the user
@@ -18,12 +18,10 @@ def api_test_generate(username, reponame, branch=None):
 
     .:warning:. DISABLED
     """
-    if True:
-        return True
     if branch is None:
         branch = request.form.get("branch")
 
-    uuid, slug = controllers.test.launch(username, reponame, branch)
+    uuid, slug = controllers.test.launch(username, reponame, branch, creator, gravatar, sha)
 
     return jsonify(
         id=uuid,
@@ -76,9 +74,15 @@ def api_test_payload():
     event = request.headers.get("X-GitHub-Event")
 
     if event == "push":
-        return api_test_generate(username, reponame, payload["ref"])
+        creator = payload["head_commit"]["committer"]["username"]
+        gravatar = "https://avatars.githubusercontent.com/{0}".format(creator)
+        sha = payload["head_commit"]["id"]
+        return api_test_generate(username, reponame, payload["ref"], creator, gravatar, sha)
     elif event == "pull_request":
-        return api_test_generate(username, reponame, payload["number"])
+        creator = payload["pull_request"]["user"]["login"]
+        gravatar = "https://avatars.githubusercontent.com/{0}".format(creator)
+        sha = payload["pull_request"]["merge_commit_sha"]
+        return api_test_generate(username, reponame, payload["number"], creator, gravatar, sha)
 
 
     return jsonify(

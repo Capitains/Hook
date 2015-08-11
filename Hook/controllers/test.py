@@ -9,6 +9,7 @@ import subprocess
 from uuid import uuid4
 import git
 from utils import Progress
+import shutil
 
 # General use libraries
 import json
@@ -16,6 +17,7 @@ import re
 
 # Database imports
 from models.logs import *
+    
 
 """
     Dictionaries for status checking
@@ -166,6 +168,7 @@ def read(username, reponame, branch, uuid):
     update(report, logs, username, reponame, branch, uuid, nb_files, tested)
 
     if report is not None:
+        remove(uuid)
         del background_git[uuid]
         del background_status[uuid]
         del background_logs[uuid]
@@ -234,7 +237,7 @@ def update(report, logs, username, reponame, branch, uuid, nb_files=1, tested=0)
 
     repo_test.save()
 
-def launch(username, reponame, ref):
+def launch(username, reponame, ref, creator, gravatar, sha):
     """ Launch test into multithread.
 
     :param username: Name of the user
@@ -257,10 +260,23 @@ def launch(username, reponame, ref):
     uuid = str(uuid4())
     background_status[uuid] = False
 
-    repo = RepoTest.Get_or_Create(uuid, username, reponame, ref, save=True)
+    repo = RepoTest.Get_or_Create(uuid, username, reponame, ref)
+    repo.user = creator
+    repo.gravatar = gravatar
+    repo.sha = sha
+    repo.save()
 
     t = threading.Thread(target=lambda: test(uuid, username + "/" + reponame, ref))
     t.start()
     watch(uuid, username + "/" + reponame, ref)
 
     return uuid, repo.branch_slug
+
+def remove(uuid):
+    """ Remove the cloned folder of the uuid identified repo
+
+    :param uuid:
+    :type uuid:
+    """
+    print(uuid)
+    shutil.rmtree(TEST_PATH + "/" + str(uuid))

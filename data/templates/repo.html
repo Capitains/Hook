@@ -34,11 +34,12 @@
                                 <tr>
                                     <th>Date</th>
                                     <th>Reference</th>
+                                    <th>User</th>
                                     <th>Status</th>
                                     <th>Coverage</th>
                                     <th>Files tested</th>
                                     <th>Files passing</th>
-                                    <th>ID</th>
+                                    <th>Logs</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -47,6 +48,7 @@
                                     <tr class="warning">
                                         <td>{{test.run_at}}</td>
                                         <td>{{test.branch}}</td>
+                                        <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
                                         <td colspan="4">
                                           <div class="progress">
                                             <div class="progress-bar" role="progressbar" aria-valuenow="{{test.percent}}" aria-valuemin="0" aria-valuemax="100" style="width: {{test.percent}}%;">
@@ -54,7 +56,7 @@
                                             </div>
                                           </div>
                                         </td>
-                                        <td>{{test.uuid}}</td>
+                                        <td><a href="{{url_for('repo_test_report', username=username, reponame=reponame, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
                                     </tr>
                                 {% endfor %}
                                 {% for test in tests %}
@@ -62,11 +64,12 @@
                                     <tr>
                                         <td>{{test.run_at}}</td>
                                         <td>{{test.branch}}</td>
+                                        <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
                                         <td><img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
                                         <td><img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
                                         <td>{{test.total}}</td>
                                         <td>{{test.tested}}</td>
-                                        <td>{{test.uuid}}</td>
+                                        <td><a href="{{url_for('repo_test_report', username=username, reponame=reponame, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
                                     </tr>
                                 {% endfor %}
                             </tbody>

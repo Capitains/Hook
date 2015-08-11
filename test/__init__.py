@@ -112,7 +112,11 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
 prnt(">>> Finished tests !")
 
 success = len([True for status in passing.values() if status is True])
-prnt("{0} over {1} texts have fully passed the tests".format(success, len(passing)))
+if success == len(passing):
+    status_string = "success"
+else:
+    status_string = "failure"
+prnt("[{2}] {0} over {1} texts have fully passed the tests".format(success, len(passing), status_string))
 
 prnt("====JSON====")
 prnt(json.dumps({

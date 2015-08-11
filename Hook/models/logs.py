@@ -36,6 +36,10 @@ class RepoTest(db.Document):
     units = db.EmbeddedDocumentListField(DocTest)
     total = db.IntField(default=1)
     tested = db.IntField(default=0)
+
+    user = db.StringField(default="")
+    gravatar = db.StringField(default="")
+    sha = db.StringField(default="")
     
     meta = {
         'ordering': ['-run_at']
@@ -93,7 +97,7 @@ class RepoTest(db.Document):
             repo_test = repo_test.first()
         return repo_test
 
-    def report(username, reponame, branch=None, uuid=None):
+    def report(username, reponame, branch=None, uuid=None, repo_test=None):
         """ Return the logs and status when the test is finished 
 
 
@@ -109,10 +113,16 @@ class RepoTest(db.Document):
         :returns: Logs, Detailed report, Current progress, Overall status
         :rtype: list, dict, dict, int
         """
-        print(username, reponame, branch, uuid)
-        repo_test = RepoTest.objects.get_or_404(username=username, reponame=reponame, branch=branch, uuid=uuid)
+        if repo_test is None:
+            repo_test = RepoTest.objects.get_or_404(username=username, reponame=reponame, branch=branch, uuid=uuid)
 
         units = {}
+
+        if repo_test.status is None:
+            done=0
+        else:
+            done = int(repo_test.status)
+
         for document in repo_test.units:
             units[document.path] = {
                 "status" : document.status,
@@ -128,7 +138,7 @@ class RepoTest(db.Document):
                 "status"   : repo_test.status,
                 "units" : units
             },
-            "done" : int(repo_test.status)
+            "done" : done
         }
 
         return answer
