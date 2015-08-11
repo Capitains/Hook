@@ -1,4 +1,8 @@
 import git
+import re
+
+import slugify as slugify_library
+
 
 class Progress(git.RemoteProgress):
 
@@ -34,3 +38,6 @@ class Progress(git.RemoteProgress):
             "Downladed {0}/{1} ({2})".format(self.current, self.maximum, self.download),
             "\n".join(self.end)
         ]
+
+def slugify(value):
+    return slugify_library.slugify(value, only_ascii=True)

@@ -33,7 +33,7 @@
                             <thead>
                                 <tr>
                                     <th>Date</th>
-                                    <th>Branch</th>
+                                    <th>Reference</th>
                                     <th>Status</th>
                                     <th>Coverage</th>
                                     <th>Files tested</th>
@@ -62,8 +62,8 @@
                                     <tr>
                                         <td>{{test.run_at}}</td>
                                         <td>{{test.branch}}</td>
-                                        <td><img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame, branch=test.branch, uuid=test.uuid) }}" /></td>
-                                        <td><img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame, branch=test.branch, uuid=test.uuid) }}" /></td>
+                                        <td><img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
+                                        <td><img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
                                         <td>{{test.total}}</td>
                                         <td>{{test.tested}}</td>
                                         <td>{{test.uuid}}</td>
