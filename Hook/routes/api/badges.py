@@ -33,6 +33,8 @@ def coverage_template(resource):
 
 def get_repo(**kwargs):
     """ Get the repo from the database """
+    if "branch" in kwargs and kwargs["branch"] is not None:
+        kwargs["branch"] = "refs/heads/"+kwargs["branch"]
     kwargs = {key+"__iexact":value for key, value in kwargs.items() if value is not None}
     if "uuid" in kwargs:
         repo = RepoTest.objects.get_or_404(**kwargs)
@@ -41,11 +43,12 @@ def get_repo(**kwargs):
     return repo
 
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/status/<uuid>.svg')
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/status/<uuid>.svg', defaults = {"branch" : None})
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/status.svg', defaults = {"uuid" : None})
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/status.svg', defaults = {"uuid" : None, "branch" : None})
 def repo_badge_status(username, reponame, branch=None, uuid=None):
     """ Get a Badge for a repo """
-    repo = get_repo(username=username, reponame=reponame, branch=branch, uuid=uuid)
+    repo = get_repo(username=username, reponame=reponame, branch_slug=branch, uuid=uuid)
 
     template = render_template(build_template(repo))
     response = make_response(template)
@@ -54,11 +57,12 @@ def repo_badge_status(username, reponame, branch=None, uuid=None):
     return response
 
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/coverage/<uuid>.svg')
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/coverage/<uuid>.svg', defaults = {"branch" : None})
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/coverage.svg', defaults = {"uuid" : None})
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/coverage.svg', defaults = {"uuid" : None, "branch" : None})
 def repo_badge_coverage(username, reponame, branch=None, uuid=None):
     """ Get a Badge for a repo """
-    repo = get_repo(username=username, reponame=reponame, branch=branch, uuid=uuid)
+    repo = get_repo(username=username, reponame=reponame, branch_slug=branch, uuid=uuid)
 
     template = render_template(coverage_template(repo), score=rnd(repo))
     response = make_response(template)
@@ -71,7 +75,7 @@ def repo_badge_coverage(username, reponame, branch=None, uuid=None):
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/document/<path>/status.svg', defaults = {"uuid" : None, "branch" : None})
 def doc_badge_status(username, reponame, path, branch=None, uuid=None):
     """ Get a Badge for a repo """
-    repo = get_repo(username=username, reponame=reponame, branch=branch, uuid=uuid)
+    repo = get_repo(username=username, reponame=reponame, branch_slug=branch, uuid=uuid)
 
     parts = path.split(".")
     path = "/".join([username, reponame, "data", parts[0], parts[1], path])
@@ -88,7 +92,7 @@ def doc_badge_status(username, reponame, path, branch=None, uuid=None):
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/document/<path>/coverage.svg', defaults = {"uuid" : None, "branch" : None})
 def doc_badge_coverage(username, reponame, path, branch=None, uuid=None):
     """ Get a Badge for a repo """
-    repo = get_repo(username=username, reponame=reponame, branch=branch, uuid=uuid)
+    repo = get_repo(username=username, reponame=reponame, branch_slug=branch, uuid=uuid)
 
     parts = path.split(".")
     path = "/".join([username, reponame, "data", parts[0], parts[1], path])

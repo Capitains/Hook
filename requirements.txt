@@ -1,2 +1,4 @@
 Flask==0.10.1
 flask_mongoengine==0.7.1
+GitPython==1.0.1
+unicode-slugify-0.1.3

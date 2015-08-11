@@ -7,7 +7,7 @@ app = Flask(
     static_folder="../data/static"
 )
 
-app.config["MONGODB_SETTINGS"] = {'DB': "Hook3"}
+app.config["MONGODB_SETTINGS"] = {'DB': "Hook4"}
 app.config["SECRET_KEY"] = "KeepThisS3cr3t"
 
 db = MongoEngine(app)

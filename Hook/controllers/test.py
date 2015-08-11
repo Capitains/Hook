@@ -30,6 +30,7 @@ SCRIPT_PATH = "/home/thibault/dev/capitains/Hook/test/"
 TEST_PATH = "/home/thibault/hooks"
 
 int_finder = re.compile("([0-9]+)")
+pr_finder = re.compile("PR #([0-9]+)")
 
 def test(uuid, repository, branch):
     """ Download, clone and launch the test
@@ -48,11 +49,21 @@ def test(uuid, repository, branch):
     # Taking care of cloning :
     #  
     background_git[uuid] = Progress()
-    git.repo.base.Repo.clone_from(
-        "https://github.com/{0}.git".format(repository),
-        target, 
+
+    repo = git.repo.base.Repo.clone_from(
+        url="https://github.com/{0}.git".format(repository),
+        to_path=target,
         progress=background_git[uuid]
     )
+
+    if pr_finder.match(branch):
+        branch = pr_finder.findall(branch)[0]
+        ref = "refs/pull/{0}/head:refs/pull/origin/{0}".format(branch)
+    else:
+        ref = "refs/heads/{ref}".format(ref=branch)
+
+    repo.remote().pull(ref, progress=background_git[uuid])
+
     # When cloning is finished, add repository cloned !
     background_git[uuid].update(0, background_git[uuid].current, background_git[uuid].maximum, "Repository cloned")
 
@@ -223,27 +234,33 @@ def update(report, logs, username, reponame, branch, uuid, nb_files=1, tested=0)
 
     repo_test.save()
 
-def launch(username, reponame, branch):
+def launch(username, reponame, ref):
     """ Launch test into multithread.
 
     :param username: Name of the user
     :type username: str
     :param repository: Name of the repository
     :type repository: str
-    :param branch: branch to be tested
-    :type branch: str
+    :param ref: branch to be tested
+    :type ref: str
 
     :returns: Identifier of the test
     :rtype: str
     """
 
+    if isinstance(ref, int):
+        ref = "PR #{0}".format(ref)
+    elif "/" in ref:
+        print(ref)
+        ref = ref.split("/")[-1]
+
     uuid = str(uuid4())
     background_status[uuid] = False
 
-    RepoTest.Get_or_Create(uuid, username, reponame, branch, save=True)
+    repo = RepoTest.Get_or_Create(uuid, username, reponame, ref, save=True)
 
-    t = threading.Thread(target=lambda: test(uuid, username + "/" + reponame, branch))
+    t = threading.Thread(target=lambda: test(uuid, username + "/" + reponame, ref))
     t.start()
-    watch(uuid, username + "/" + reponame, branch)
+    watch(uuid, username + "/" + reponame, ref)
 
-    return uuid
+    return uuid, repo.branch_slug

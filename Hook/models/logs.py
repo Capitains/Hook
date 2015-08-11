@@ -1,5 +1,6 @@
 import datetime
 from app import db
+from utils import slugify
 
 
 class DocLogs(db.EmbeddedDocument):
@@ -28,6 +29,7 @@ class RepoTest(db.Document):
     reponame = db.StringField(required=True)
     userrepo = db.StringField(required=True)
     branch = db.StringField(default=None)
+    branch_slug = db.StringField(required=True)
     status = db.BooleanField(default=None)
     coverage = db.FloatField(min_value=0.0, max_value=100.0, default=None)
     logs = db.EmbeddedDocumentListField(RepoLogs)
@@ -39,7 +41,7 @@ class RepoTest(db.Document):
         'ordering': ['-run_at']
     }
 
-    def Get_or_Create(uuid, username, reponame, branch, save=False):
+    def Get_or_Create(uuid, username, reponame, branch=None, slug=None, save=False):
         """ Find said RepoTest is not found, create an instance for it
 
         :param username: Username of the repo's owner
@@ -57,20 +59,33 @@ class RepoTest(db.Document):
         :rtype: RepoTest
 
         """
-        repo_test = RepoTest.objects(
-            uuid__iexact=uuid,
-            username__iexact=username,
-            reponame__iexact=reponame,
-            branch__iexact=branch,
-            userrepo__iexact=username+"/"+reponame
-        )
+
+        if slug is not None:
+            repo_test = RepoTest.objects(
+                uuid__iexact=uuid,
+                username__iexact=username,
+                reponame__iexact=reponame,
+                branch_slug__iexact=slug,
+                userrepo__iexact=username+"/"+reponame
+            )
+        else:
+            slug = slugify(branch)
+            repo_test = RepoTest.objects(
+                uuid__iexact=uuid,
+                username__iexact=username,
+                reponame__iexact=reponame,
+                branch__iexact=branch,
+                userrepo__iexact=username+"/"+reponame,
+                branch_slug=slug
+            )
         if len(repo_test) == 0:
             repo_test = RepoTest(
                 uuid=uuid,
                 username=username,
                 reponame=reponame,
                 branch=branch,
-                userrepo=username+"/"+reponame
+                userrepo=username+"/"+reponame,
+                branch_slug=slug
             )
             if save is True:
                 repo_test.save()
@@ -78,7 +93,7 @@ class RepoTest(db.Document):
             repo_test = repo_test.first()
         return repo_test
 
-    def report(username, reponame, branch, uuid):
+    def report(username, reponame, branch=None, uuid=None):
         """ Return the logs and status when the test is finished 
 
 
@@ -94,6 +109,7 @@ class RepoTest(db.Document):
         :returns: Logs, Detailed report, Current progress, Overall status
         :rtype: list, dict, dict, int
         """
+        print(username, reponame, branch, uuid)
         repo_test = RepoTest.objects.get_or_404(username=username, reponame=reponame, branch=branch, uuid=uuid)
 
         units = {}
