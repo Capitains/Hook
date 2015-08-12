@@ -21,8 +21,6 @@ login_manager = LoginManager(app)
 from routes import ui
 from routes import github
 from routes import user
-from routes.api import general
+from routes.api import user
 from routes.api import badges
 from routes.api import test
-from routes import github
-from routes import user

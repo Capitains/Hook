@@ -1,85 +1,76 @@
-{% extends "container.html" %}
+{% extends "container-2col.html" %}
 
 
 {% block body %}
-{% include "header.html" %}
-<div style="padding-top: 50px;">
-    <div class="container">
-        <div class="row">
-            <nav class="col-md-3">
-            </nav>
-            <section class="col-md-9">
-                <header>
-                    <h1>
-                        {{username}}/{{reponame}}
-                        <img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame) }}" />
-                        <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame) }}" />
-                    </h1>
-                </header>
-                <div class="row">
-                    <div class="col-md-4">
-                        <h2>Coverage settings</h2>
+  <section>
+      <header>
+          <h1>
+              {{username}}/{{reponame}}
+              <img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame) }}" />
+              <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame) }}" />
+          </h1>
+      </header>
+      <div class="row">
+          <div class="col-md-4">
+              <h2>Coverage settings</h2>
 
-                    </div>
-                    <div class="col-md-8">
-                        <h2>History and progression</h2>
-                        <div id="history"></div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-12">
-                        <h2>Past tests</h2>
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Reference</th>
-                                    <th>User</th>
-                                    <th>Status</th>
-                                    <th>Coverage</th>
-                                    <th>Files tested</th>
-                                    <th>Files passing</th>
-                                    <th>Logs</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for test in running %}
+          </div>
+          <div class="col-md-8">
+              <h2>History and progression</h2>
+              <div id="history"></div>
+          </div>
+      </div>
+      <div class="row">
+          <div class="col-md-12">
+              <h2>Past tests</h2>
+              <table class="table table-striped">
+                  <thead>
+                      <tr>
+                          <th>Date</th>
+                          <th>Reference</th>
+                          <th>User</th>
+                          <th>Status</th>
+                          <th>Coverage</th>
+                          <th>Files tested</th>
+                          <th>Files passing</th>
+                          <th>Logs</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      {% for test in running %}
 
-                                    <tr class="warning">
-                                        <td>{{test.run_at}}</td>
-                                        <td>{{test.branch}}</td>
-                                        <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
-                                        <td colspan="4">
-                                          <div class="progress">
-                                            <div class="progress-bar" role="progressbar" aria-valuenow="{{test.percent}}" aria-valuemin="0" aria-valuemax="100" style="width: {{test.percent}}%;">
-                                            {{test.percent}}%
-                                            </div>
-                                          </div>
-                                        </td>
-                                        <td><a href="{{url_for('repo_test_report', username=username, reponame=reponame, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
-                                    </tr>
-                                {% endfor %}
-                                {% for test in tests %}
+                          <tr class="warning">
+                              <td>{{test.run_at}}</td>
+                              <td>{{test.branch}}</td>
+                              <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
+                              <td colspan="4">
+                                <div class="progress">
+                                  <div class="progress-bar" role="progressbar" aria-valuenow="{{test.percent}}" aria-valuemin="0" aria-valuemax="100" style="width: {{test.percent}}%;">
+                                  {{test.percent}}%
+                                  </div>
+                                </div>
+                              </td>
+                              <td><a href="{{url_for('repo_test_report', username=username, reponame=reponame, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
+                          </tr>
+                      {% endfor %}
+                      {% for test in tests %}
 
-                                    <tr>
-                                        <td>{{test.run_at}}</td>
-                                        <td>{{test.branch}}</td>
-                                        <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
-                                        <td><img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
-                                        <td><img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
-                                        <td>{{test.total}}</td>
-                                        <td>{{test.tested}}</td>
-                                        <td><a href="{{url_for('repo_test_report', username=username, reponame=reponame, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-        </div>
-    </div>
-</div>
+                          <tr>
+                              <td>{{test.run_at}}</td>
+                              <td>{{test.branch}}</td>
+                              <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
+                              <td><img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
+                              <td><img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
+                              <td>{{test.total}}</td>
+                              <td>{{test.tested}}</td>
+                              <td><a href="{{url_for('repo_test_report', username=username, reponame=reponame, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
+                          </tr>
+                      {% endfor %}
+                  </tbody>
+              </table>
+          </div>
+      </div>
+  </section>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
 <script>
