@@ -42,6 +42,10 @@ def _success_class(status):
 
 @app.route('/')
 def index():
+    return render_template('index.html')
+
+@app.route('/login')
+def login_ui():
     return render_template('login.html')
 
 @app.route('/repo/<username>/<reponame>')
@@ -51,8 +55,6 @@ def repo(username, reponame):
         r.branch = r.branch.split("/")[-1]
     done = [r for r in repo if r.tested == r.total]
     running = [r for r in repo if r.tested != r.total]
-
-
 
     for r in running:
         r.percent = int(r.tested / r.total * 100)
@@ -75,3 +77,4 @@ def repo_test_report(username, reponame, uuid):
         report=report,
         repo=repo_test
     )
+

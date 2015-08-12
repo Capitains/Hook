@@ -58,34 +58,3 @@ def api_repo_history(username, reponame):
         ]
     }
     return jsonify(history)
-
-@app.route("/payload", methods=['POST'])
-def api_test_payload():
-    """ Handle GitHub payload 
-    """
-    payload = request.get_json(force=True)
-    informations = {
-        "sha" : request.headers.get("X-Hub-Signature"),
-        "delivery" : request.headers.get("X-GitHub-Delivery"),
-        "user" : request.headers.get("User-Agent")
-    }
-
-    username, reponame = tuple(payload["repository"]["full_name"].split("/"))
-    event = request.headers.get("X-GitHub-Event")
-
-    if event == "push":
-        creator = payload["head_commit"]["committer"]["username"]
-        gravatar = "https://avatars.githubusercontent.com/{0}".format(creator)
-        sha = payload["head_commit"]["id"]
-        return api_test_generate(username, reponame, payload["ref"], creator, gravatar, sha)
-    elif event == "pull_request":
-        creator = payload["pull_request"]["user"]["login"]
-        gravatar = "https://avatars.githubusercontent.com/{0}".format(creator)
-        sha = payload["pull_request"]["merge_commit_sha"]
-        return api_test_generate(username, reponame, payload["number"], creator, gravatar, sha)
-
-
-    return jsonify(
-        headers=informations,
-        payload=payload
-    )

@@ -2,3 +2,6 @@ Flask==0.10.1
 flask_mongoengine==0.7.1
 GitPython==1.0.1
 unicode-slugify-0.1.3
+GitHub-Flask==2.1.0
+https://github.com/pferreir/flask-environments/tarball/fix-python3
+flask-login==0.2.11
