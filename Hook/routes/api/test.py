@@ -1,12 +1,15 @@
-from flask import abort, jsonify, request
-from app import app
+from flask import abort, jsonify, request, g, Response
+from app import app, github_api
+from flask.ext.login import login_required
 
 import controllers.test
 import models.logs
+import models.user
 import json
 
-# @app.route('/api/rest/v1.0/code/<username>/<reponame>/test', defaults= { "branch" : None})
-def api_test_generate(username, reponame, branch, creator=None, gravatar=None, sha=None):
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/test', defaults= { "branch" : None})
+@login_required
+def api_test_generate_route(username, reponame, branch=None, creator=None, gravatar=None, sha=None):
     """ Generate a test on the machine
 
     :param username: Name of the user
@@ -18,24 +21,20 @@ def api_test_generate(username, reponame, branch, creator=None, gravatar=None, s
 
     .:warning:. DISABLED
     """
-    if branch is None:
-        branch = request.form.get("branch")
+    return controllers.test.api_test_generate(username, reponame, branch, creator, gravatar, sha)
 
-    uuid, slug = controllers.test.launch(username, reponame, branch, creator, gravatar, sha)
-
-    return jsonify(
-        id=uuid,
-        repository=reponame,
-        username=username,
-        branch=branch,
-        status="/api/rest/v1.0/code/{0}/{1}/{2}/test/{3}".format(username, reponame, slug, uuid)
-    )
-
-@app.route('/api/rest/v1.0/code/<username>/<reponame>/<slug>/test/<uuid>')
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/<slug>/test/<uuid>', methods=["GET", "DELETE"])
 def api_test_status(username, reponame, slug, uuid):
     """ Show status of a test
     """
-    answer = models.logs.RepoTest.report(username, reponame, branch_slug=slug, uuid=uuid)
+    if request.method == "DELETE":
+        test = models.logs.RepoTest.objects.get_or_404(username__iexact=username, reponame__iexact=reponame, branch_slug__iexact=slug, uuid=uuid)
+        controllers.test.remove(test.uuid)
+        test.update(status=False, total=0, tested=0)
+        test.git_status(True)
+        return jsonify(cancelled=True)
+
+    answer = models.logs.RepoTest.report(username, reponame, slug=slug, uuid=uuid)
     return jsonify(answer)
 
 @app.route('/api/rest/v1.0/code/<username>/<reponame>')

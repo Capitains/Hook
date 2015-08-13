@@ -5,7 +5,7 @@ import datetime
 class User(db.Document):
     """ User informations """
     uuid  = db.StringField(max_length=200, required=True)
-    mail = db.StringField(required=True)
+    mail = db.StringField(required=False)
     login = db.StringField(required=True)
     git_id = db.IntField(required=True)
     github_access_token = db.StringField(max_length=200, required=True)
@@ -107,6 +107,7 @@ class Repository(db.Document):
             repository = repository.first()
             tested = not repository.tested
             repository.update(tested=tested)
+            repository.reload()
             return repository.hook()
         return None
     
@@ -150,5 +151,4 @@ class Repository(db.Document):
             if uuid is not None:
                 github_api.delete("repos/{owner}/{repo}/hooks/{id}".format(owner=self.owner, repo=self.name, id=uuid))
 
-        self.reload()
         return self.tested

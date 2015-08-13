@@ -69,11 +69,14 @@ def repo(username, reponame):
     for test in tests:
         test.branch = test.branch.split("/")[-1]
 
-    done = [test for test in tests if test.tested == test.total]
-    running = [test for test in tests if test.tested != test.total]
+    done = [test for test in tests if test.status is not None]
+    running = [test for test in tests if test.status is None]
 
     for r in running:
-        r.percent = int(r.tested / r.total * 100)
+        if r.total > 0:
+            r.percent = int(r.tested / r.total * 100)
+        else:
+            r.percent = 0
 
     return render_template(
         'repo.html',

@@ -2,36 +2,34 @@
 
 
 {% block body %}
-<h1>Welcome on Capitains Hook</h1>
+<h1>Welcome to Capitains Hook</h1>
 
-<h2>Repository you might want to add <button class=" pull-right btn btn-default" type="button" id="refresh"><span class="fa fa-refresh"></span></button></h2>
+{% if current_user.is_authenticated() %}
+    <h2>Repository you might want to add <button class=" pull-right btn btn-default" type="button" id="refresh"><span class="fa fa-refresh"></span></button></h2>
 
-<div class="row">
-    <div class="col-md-9">
-        <ul id="repo-list" class="list-group">
-            {% if current_user.is_authenticated() %}
-                {% for repo in current_user.repositories %}
-                    <li class="list-group-item repo-menu-card" data-owner="{{repo.owner}}">
-                        <a href="{{url_for('repo', username=repo.owner, reponame=repo.name)}}">
-                            <i class="fa fa-folder-open pull-left"></i>
-                            <div class="owner">
-                                {{repo.owner}}/
-                            </div>
-                            <div class="repo">{{repo.name}}</div>
-                        </a>
-                    </li>
-                {% endfor %}
-            {% endif %}
-        </ul>
-    </div>
-    <div class="col-md-3">
-        {% if current_user.is_authenticated() %}
-            {% for repo in current_user.organizations %}
-                <a style="margin:2px;" class="owner-activation btn btn-primary btn-xs">{{repo}}</a>
+    <div class="row">
+        <div class="col-md-9">
+            <ul id="repo-list" class="list-group">
+            {% for repo in current_user.repositories %}
+                <li class="list-group-item repo-menu-card" data-owner="{{repo.owner}}">
+                    <a href="{{url_for('repo', username=repo.owner, reponame=repo.name)}}">
+                        <i class="fa fa-folder-open pull-left"></i>
+                        <div class="owner">
+                            {{repo.owner}}/
+                        </div>
+                        <div class="repo">{{repo.name}}</div>
+                    </a>
+                </li>
             {% endfor %}
-        {% endif %}
+            </ul>
+        </div>
+        <div class="col-md-3">
+                {% for repo in current_user.organizations %}
+                    <a style="margin:2px;" class="owner-activation btn btn-primary btn-xs">{{repo}}</a>
+                {% endfor %}
+        </div>
     </div>
-</div>
+{% endif %}
 {% endblock %}
 
 {% block script %}

@@ -6,6 +6,9 @@
       <header>
           <h1>
               {{repository.owner}}/{{repository.name}}
+              {% if not repository.isWritable() %}
+              <div class="btn {{repository.tested|btn}} btn-xs"><span class="glyphicon glyphicon-off"></span></div>
+              {% endif %}
               <img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name) }}" />
               <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name) }}" />
           </h1>
@@ -16,6 +19,9 @@
               <h2>
                 Settings
                 <div class="pull-right">
+                  {% if repository.tested %}
+                  <a href="{{url_for('api_test_generate_route', username=repository.owner, reponame=repository.name)}}" class="btn btn-xs btn-info run">Run</a>
+                  {% endif %}
                   <button id="state" class="btn {{repository.tested|btn}} btn-xs">
                     <span class="glyphicon glyphicon-off"></span>
                     <span class="fa fa-refresh" style="display: none;"></span>
@@ -61,7 +67,12 @@
                                   </div>
                                 </div>
                               </td>
-                              <td><a href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
+                              <td>
+                                {% if repository.isWritable() %}
+                                <a href="{{url_for('api_test_status', username=repository.owner, reponame=repository.name, uuid=test.uuid, slug=test.branch_slug)}}" class="btn btn-xs btn-danger cancel-test" style="margin:1px;"><span class="glyphicon glyphicon-remove"></span></a> 
+                                {% endif %}
+                                <a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a>
+                              </td>
                           </tr>
                       {% endfor %}
                       {% for test in tests %}
@@ -74,7 +85,7 @@
                               <td><img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
                               <td>{{test.total}}</td>
                               <td>{{test.tested}}</td>
-                              <td><a href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
+                              <td><a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
                           </tr>
                       {% endfor %}
                   </tbody>
@@ -88,12 +99,40 @@
 <script src="{{url_for('static', filename='js/bootstrap-switch.min.js')}}"></script>
 <script>
 $(document).ready(function() {
+  $(".run").on("click", function(event) {
+    event.preventDefault();
+    var that = $(this);
+    $.ajax(that.attr("href"))
+      .success(function(data) {
+        location.href = "/repo/{{repository.owner}}/{{repository.name}}/" + data.uuid;
+      }).error(function(data) {
+        alert(data.responseJSON.error);
+      });
+  });
+
+  $(".cancel-test").on("click", function(e) {
+    e.preventDefault();
+    var that = $(this),
+        uri = that.attr("href");
+
+    $.ajax({
+      url: uri,
+      type: 'DELETE',
+      success: function(data) {
+        location.reload();
+      },
+      error : function(data) {
+        alert("Error while canceling");
+        location.reload();
+      }
+    });
+  })
+
   $('#state').on('click', function(event) {
     event.preventDefault();
     var el = $(this),
         spinner = el.find(".fa-refresh"),
         on = el.find(".glyphicon-off");
-
     el.removeClass("btn-success btn-danger").addClass("btn-default");
     spinner.show().addClass("fa-spin");
     on.hide();
@@ -107,6 +146,7 @@ $(document).ready(function() {
         on.show();
         if(data.status && data.status == true) {
           el.addClass("btn-success");
+          location.reload();
         } else if(data.status === false) {
           el.addClass("btn-danger");
         } else {
