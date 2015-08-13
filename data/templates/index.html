@@ -3,4 +3,89 @@
 
 {% block body %}
 <h1>Welcome on Capitains Hook</h1>
+
+<h2>Repository you might want to add <button class=" pull-right btn btn-default" type="button" id="refresh"><span class="fa fa-refresh"></span></button></h2>
+
+<div class="row">
+    <div class="col-md-9">
+        <ul id="repo-list" class="list-group">
+            {% if current_user.is_authenticated() %}
+                {% for repo in current_user.repositories %}
+                    <li class="list-group-item repo-menu-card" data-owner="{{repo.owner}}">
+                        <a href="{{url_for('repo', username=repo.owner, reponame=repo.name)}}">
+                            <i class="fa fa-folder-open pull-left"></i>
+                            <div class="owner">
+                                {{repo.owner}}/
+                            </div>
+                            <div class="repo">{{repo.name}}</div>
+                        </a>
+                    </li>
+                {% endfor %}
+            {% endif %}
+        </ul>
+    </div>
+    <div class="col-md-3">
+        {% if current_user.is_authenticated() %}
+            {% for repo in current_user.organizations %}
+                <a style="margin:2px;" class="owner-activation btn btn-primary btn-xs">{{repo}}</a>
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script type="text/javascript">
+    var ui = {};
+    var owners = [];
+    {% for repo in current_user.organizations %}
+        owners.push("{{repo}}");
+    {% endfor %}
+
+    ui.loadRepos = function(rows) {
+      var menu = $("#repo-list");
+      menu.empty();
+      // Clean up the rows
+      for (var i = 0; i < rows.length; i++) {
+        console.log(rows[i])
+        menu.append(
+          $('<li class="repo-menu-card">' + rows[i]["owner"] + '/'+ rows[i].name + '</li>')
+        );
+      };
+    };
+
+    $(document).ready(function() {
+      $("#refresh").on("click", function(e) {
+        e.preventDefault();
+        $("#refresh .fa-refresh").addClass("fa-spin");
+        $.post("{{url_for('api_user_repositories')}}")
+          .success(function(d) {
+            ui.loadRepos(d);
+            $("#refresh .fa-refresh").removeClass("fa-spin");
+          });
+      });
+
+      $(".owner-activation").on("click", function() {
+        var owner = $(this).text(),
+            index = owners.indexOf(owner),
+            that = $(this);
+        if (index >= 0) {
+            owners.splice(index, 1);
+            that.removeClass("btn-primary").addClass("btn-default");
+        } else {
+            owners.push(owner);
+            that.addClass("btn-primary").removeClass("btn-default");
+        }
+        $(".repo-menu-card").hide();
+
+        $(".repo-menu-card").each(function(i, el) {
+            that = $(el);
+            if(owners.indexOf(that.data("owner")) >= 0) {
+                that.show();
+            }
+        });
+
+      });
+    });
+</script>
 {% endblock %}

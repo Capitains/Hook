@@ -185,3 +185,27 @@ h2 {
   font-size: 1.5em;
   padding:5px;
 }
+
+.repo-menu-card .owner {
+  color:grey;
+  line-height: 12px;
+  font-size:12px;
+}
+.repo-menu-card .repo {
+  color:black;
+  line-height: 14px;
+  font-size:13px;
+  text-indent:5px;
+  overflow:hidden;
+  height:16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.repo-menu-card a:hover {
+  text-decoration: none;
+}
+
+#repo-list {
+  max-height: 400px;
+  overflow: auto;
+}

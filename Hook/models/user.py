@@ -36,7 +36,9 @@ class User(db.Document):
         if g.user == self:
             # We clear the old authors
             clean = self.clean()
-            repos = github_api.get("user/repos", params={"access_token" : self.github_access_token})
+
+            repos = github_api.get("user/repos", params={"affiliation": "owner,collaborator,organization_member", "access_token" : self.github_access_token}, all_pages=True)
+
             response = []
             for repo in repos:
                 owner = repo["owner"]["login"]
@@ -64,6 +66,11 @@ class User(db.Document):
     @property
     def repositories(self):
         return list(Repository.objects(authors__in=[self]))
+
+    @property
+    def organizations(self):
+        return Repository.objects(authors__in=[self]).distinct("owner")
+    
     
     def repository(owner, name):
         return Repository.objects(authors__in=[self], owner__iexact=owner, name__iexact=name)

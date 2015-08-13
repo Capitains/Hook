@@ -7,7 +7,7 @@ from models.user import User
 @app.route('/login/form')
 def login():
     if session.get('user_id', None) is None:
-        return github_api.authorize(scope=",".join(["user:email", "repo:status", "admin:repo_hook"]))
+        return github_api.authorize(scope=",".join(["user:email", "repo:status", "admin:repo_hook", "read:org"]))
     else:
         redirect(url_for("index"))
 
