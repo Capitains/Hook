@@ -56,6 +56,20 @@ def repo_badge_status(username, reponame, branch=None, uuid=None):
 
     return response
 
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/cts/<uuid>.svg')
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/cts/<uuid>.svg', defaults = {"branch" : None})
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/cts.svg', defaults = {"uuid" : None})
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/cts.svg', defaults = {"uuid" : None, "branch" : None})
+def repo_cts_status(username, reponame, branch=None, uuid=None):
+    """ Get a Badge for a repo """
+    repo = get_repo(username=username, reponame=reponame, branch_slug=branch, uuid=uuid)
+    cts, total = repo.ctsized()
+    template = render_template("svg/cts.xml", cts=cts, total=total)
+    response = make_response(template)
+    response.content_type = 'image/svg+xml'
+
+    return response
+
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/coverage/<uuid>.svg')
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/coverage/<uuid>.svg', defaults = {"branch" : None})
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/coverage.svg', defaults = {"uuid" : None})

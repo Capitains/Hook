@@ -11,6 +11,7 @@
               {% endif %}
               <img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name) }}" />
               <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name) }}" />
+              <img alt="CTS badge" src="{{ url_for('repo_cts_status', username=repository.owner, reponame=repository.name) }}" />
           </h1>
       </header>
       <div class="row">

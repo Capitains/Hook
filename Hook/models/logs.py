@@ -50,6 +50,10 @@ class RepoTest(db.Document):
         'ordering': ['-run_at']
     }
 
+    def ctsized(self):
+        units = [unit.status for unit in  self.units if "__cts__.xml" not in unit.path]
+        return units.count(True), len(units)
+
     def Get_or_Create(uuid, username, reponame, branch=None, slug=None, save=False):
         """ Find said RepoTest is not found, create an instance for it
 
