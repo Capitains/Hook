@@ -15,8 +15,8 @@
       </ul>
       <ul class="nav navbar-nav navbar-right">
         {% if current_user.is_authenticated() %}
-          <li><a class="navbar-brand" href="/profile" style="padding-top:5px; padding-bottom: 5px;"><img style=" border-radius: 20px;" src="https://avatars.githubusercontent.com/{{ current_user.login }}?s=40" /></a></li>
-          <li><a href="/profile">Hi {{ current_user.login }}!</a></li>
+          <li><a class="navbar-brand" href="#" style="padding-top:5px; padding-bottom: 5px;"><img style=" border-radius: 20px;" src="https://avatars.githubusercontent.com/{{ current_user.login }}?s=40" /></a></li>
+          <li><a href="#">Hi {{ current_user.login }}!</a></li>
           <li><a href="{{url_for('logout')}}" alt="Sign off"><span class="glyphicon glyphicon-off"></span></a></li>
         {% else %}
           <li><a href="{{url_for('login')}}">Sign-in</a></li>

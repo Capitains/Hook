@@ -2,32 +2,30 @@
 
 
 {% block body %}
-<div style="padding-top: 50px;">
-    <div class="container">
       <article>
           <div class="row">
             <header class="col-md-12">
               <h1>
-                  <a class="pull-left" href="{{url_for('repo', username=repo.username, reponame=repo.reponame)}}"><span class="glyphicon glyphicon-home"></span></a>
-                  {{repo.username}}/{{repo.reponame}}
-                  <img alt="Status badge" src="{{ url_for('repo_badge_status', username=repo.username, reponame=repo.reponame, branch=repo.branch_slug, uuid=repo.uuid) }}" />
-                  <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repo.username, reponame=repo.reponame,branch=repo.branch_slug, uuid=repo.uuid) }}" />
+                  <a class="pull-left" href="{{url_for('repo', username=repository.owner, reponame=repository.name)}}"><span class="glyphicon glyphicon-home"></span></a>
+                  {{repository.owner}}/{{repository.name}}
+                  <img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name, branch=test.branch_slug, uuid=test.uuid) }}" />
+                  <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name,branch=test.branch_slug, uuid=test.uuid) }}" />
               </h1>
               <div class="dl-horizontal card">
-                <div class="left {{repo.status|success_class}}">
+                <div class="left {{test.status|success_class}}">
                   <span class="glyphicon glyphicon-cog"></span>
                 </div>
                 <div class="row">
                   <div class="col-md-3">
                       <ul class="list-unstyled">
-                        <li>Branch: <span class="dd">{{repo.branch}}</span></li>
-                        <li>Started: <span class="dd">{{repo.run_at}}</span></li>
+                        <li>Branch: <span class="dd">{{test.branch}}</span></li>
+                        <li>Started: <span class="dd">{{test.run_at}}</span></li>
                       </ul>
                   </div>
                   <div class="col-md-9 text-right">
-                    <img class="user" src="{{repo.gravatar}}?s=50" alt="{{repo.user}}" />
-                    {{repo.user}}
-                    {{repo.sha[0:8]}}
+                    <img class="user" src="{{test.gravatar}}?s=50" alt="{{test.user}}" />
+                    {{test.user}}
+                    {{test.sha[0:8]}}
                   </div>
                 </div>
               </div>
@@ -36,13 +34,11 @@
         <div class="row">
           <section class="col-md-12">
             <ol class="logs">
-              {% for log in repo.logs if log.text %}
+              {% for log in test.logs if log.text %}
                 <li>{{log.text|format_log}}</li>
               {% endfor %}
             </ol>
           </section>
         </div>
       </article>
-    </div>
-</div>
 {% endblock %}

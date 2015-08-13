@@ -49,7 +49,7 @@
       for (var i = 0; i < rows.length; i++) {
         console.log(rows[i])
         menu.append(
-          $('<li class="repo-menu-card">' + rows[i]["owner"] + '/'+ rows[i].name + '</li>')
+          $('<li class="list-group-item repo-menu-card" data-owner="' + rows[i].owner + '"><a href="/repo/' + rows[i].owner + '/' + rows[i].name + '"><i class="fa fa-folder-open pull-left"></i><div class="owner">' + rows[i].owner + '</div><div class="repo">' + rows[i].name + '</div></a></li>')
         );
       };
     };
@@ -76,9 +76,9 @@
             owners.push(owner);
             that.addClass("btn-primary").removeClass("btn-default");
         }
-        $(".repo-menu-card").hide();
+        $("#repo-list .repo-menu-card").hide();
 
-        $(".repo-menu-card").each(function(i, el) {
+        $("#repo-list .repo-menu-card").each(function(i, el) {
             that = $(el);
             if(owners.indexOf(that.data("owner")) >= 0) {
                 that.show();

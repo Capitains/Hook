@@ -5,17 +5,28 @@
   <section>
       <header>
           <h1>
-              {{username}}/{{reponame}}
-              <img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame) }}" />
-              <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame) }}" />
+              {{repository.owner}}/{{repository.name}}
+              <img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name) }}" />
+              <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name) }}" />
           </h1>
       </header>
       <div class="row">
+          {% if repository.isWritable() %}
           <div class="col-md-4">
-              <h2>Coverage settings</h2>
-
+              <h2>
+                Settings
+                <div class="pull-right">
+                  <button id="state" class="btn {{repository.tested|btn}} btn-xs">
+                    <span class="glyphicon glyphicon-off"></span>
+                    <span class="fa fa-refresh" style="display: none;"></span>
+                  </button>
+                </div>
+              </h2>
           </div>
           <div class="col-md-8">
+          {% else %}
+          <div class="col-md-12">
+          {% endif %}
               <h2>History and progression</h2>
               <div id="history"></div>
           </div>
@@ -50,7 +61,7 @@
                                   </div>
                                 </div>
                               </td>
-                              <td><a href="{{url_for('repo_test_report', username=username, reponame=reponame, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
+                              <td><a href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
                           </tr>
                       {% endfor %}
                       {% for test in tests %}
@@ -59,11 +70,11 @@
                               <td>{{test.run_at}}</td>
                               <td>{{test.branch}}</td>
                               <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
-                              <td><img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
-                              <td><img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
+                              <td><img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
+                              <td><img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
                               <td>{{test.total}}</td>
                               <td>{{test.tested}}</td>
-                              <td><a href="{{url_for('repo_test_report', username=username, reponame=reponame, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
+                              <td><a href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
                           </tr>
                       {% endfor %}
                   </tbody>
@@ -73,10 +84,42 @@
   </section>
 {% endblock %}
 {% block script %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>axis.tickFormat(d3.format(",.0f"))
+<script src="{{url_for('static', filename='js/bootstrap-switch.min.js')}}"></script>
 <script>
+$(document).ready(function() {
+  $('#state').on('click', function(event) {
+    event.preventDefault();
+    var el = $(this),
+        spinner = el.find(".fa-refresh"),
+        on = el.find(".glyphicon-off");
 
-var margin = {top: 20, right: 20, bottom: 30, left: 20},
+    el.removeClass("btn-success btn-danger").addClass("btn-default");
+    spinner.show().addClass("fa-spin");
+    on.hide();
+
+    $.ajax({
+      url: '{{url_for("api_user_repository_switch", owner=repository.owner, name=repository.name)}}',
+      type: 'PUT',
+      success: function(data) {
+        spinner.removeClass("fa-spin").hide();
+        el.removeClass("btn-default")
+        on.show();
+        if(data.status && data.status == true) {
+          el.addClass("btn-success");
+        } else if(data.status === false) {
+          el.addClass("btn-danger");
+        } else {
+          alert("Error during switch of the repository")
+        }
+      },
+      error : function(data) {
+        alert("Error during switch of the repository")
+      }
+    });
+  });
+});
+var margin = {top: 20, right: 20, bottom: 30, left: 40},
     width = parseInt(d3.select("#history").style("width")) - margin.left - margin.right - Math.floor(parseInt(d3.select("#history").style("width"))/10),
     height = parseInt(d3.select("#history").style("width"))/16*9 - margin.top -margin.bottom;
 
@@ -85,9 +128,7 @@ var parseDate = d3.time.format("%a, %d %b %Y %X").parse;
 var x = d3.time.scale()
     .range([0, width]);
 
-var y = d3.scale.linear()
-    .range([height, 0])
-    .domain([0,100]);
+var y = d3.scale.linear().range([height, 0]);
 
 var xAxis = d3.svg.axis()
     .scale(x)
@@ -95,11 +136,13 @@ var xAxis = d3.svg.axis()
 
 var yAxis = d3.svg.axis()
     .scale(y)
-    .orient("left");
+    .ticks(4)
+    .orient("right")
+    .tickFormat(function(d) { return d/100;});
 
 var line = d3.svg.line()
     .x(function(d) { return x(Date.parse(d.run_at)); })
-    .y(function(d) { return y(Math.floor(d.coverage)); });
+    .y(function(d) { return y(Math.round(d.coverage *100)); });
 
 
 var svg = d3.select("#history").append("svg")
@@ -108,13 +151,13 @@ var svg = d3.select("#history").append("svg")
   .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-d3.json("{{ url_for('api_repo_history', username=username, reponame=reponame) }}", function(error, data) {
+d3.json("{{ url_for('api_repo_history', username=repository.owner, reponame=repository.name) }}", function(error, data) {
   if (error) throw error;
 
   data = data.logs;
 
   x.domain(d3.extent(data, function(d) { return Date.parse(d.run_at); }));
-  y.domain(d3.extent(data, function(d) { console.log(Math.floor(d.coverage)); return Math.floor(d.coverage); }));
+  y.domain(d3.extent(data, function(d) { return Math.round(d.coverage *100); }));
 
   svg.append("g")
       .attr("class", "x axis")

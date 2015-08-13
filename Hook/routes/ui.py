@@ -1,5 +1,6 @@
 from flask import render_template, Markup
 from models.logs import *
+from models.user import Repository
 
 from app import app
 from utils import slugify
@@ -9,6 +10,18 @@ def _slugify(string):
     if not string:
         return ""
     return slugify(string)
+
+@app.template_filter('checked')
+def _bool(boolean):
+    if boolean:
+        return " checked "
+    return ""
+
+@app.template_filter('btn')
+def _bool(boolean):
+    if boolean:
+        return "btn-success"
+    return "btn-danger"
 
 @app.template_filter('format_log')
 def _format_log(string):
@@ -50,31 +63,35 @@ def login_ui():
 
 @app.route('/repo/<username>/<reponame>')
 def repo(username, reponame):
-    repo = RepoTest.objects(username__iexact=username, reponame__iexact=reponame)
-    for r in repo:
-        r.branch = r.branch.split("/")[-1]
-    done = [r for r in repo if r.tested == r.total]
-    running = [r for r in repo if r.tested != r.total]
+    repository = Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
+
+    tests = RepoTest.objects(username__iexact=repository.owner, reponame__iexact=repository.name)
+    for test in tests:
+        test.branch = test.branch.split("/")[-1]
+
+    done = [test for test in tests if test.tested == test.total]
+    running = [test for test in tests if test.tested != test.total]
 
     for r in running:
         r.percent = int(r.tested / r.total * 100)
 
     return render_template(
         'repo.html',
-        username=username,
-        reponame=reponame,
+        repository=repository,
         tests=done,
         running=running
     )
 
 @app.route('/repo/<username>/<reponame>/<uuid>')
 def repo_test_report(username, reponame, uuid):
-    repo_test = RepoTest.objects.get_or_404(username__iexact=username, reponame__iexact=reponame, uuid=uuid)
-    report = RepoTest.report(username, reponame, repo_test=repo_test)
+    repository = Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
+    test = RepoTest.objects.get_or_404(username__iexact=username, reponame__iexact=reponame, uuid=uuid)
+    report = RepoTest.report(username, reponame, repo_test=test)
 
     return render_template(
         'report.html',
         report=report,
-        repo=repo_test
+        repository=repository,
+        test=test
     )
 

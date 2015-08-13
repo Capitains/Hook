@@ -70,16 +70,23 @@ class User(db.Document):
     @property
     def organizations(self):
         return Repository.objects(authors__in=[self]).distinct("owner")
+
+    @property
+    def testable(self):
+        return Repository.objects(authors__in=[self], tested=True)
+
+    def switch(self, owner, name):
+        return Repository.switch(owner, name, self);
     
-    
-    def repository(owner, name):
+    def repository(self, owner, name):
         return Repository.objects(authors__in=[self], owner__iexact=owner, name__iexact=name)
 
 
 class Repository(db.Document):
     """ Just as a cache of available repositories for user """
-    owner = db.StringField(max_length=200, required=True)
-    name  = db.StringField(max_length=200, required=True)
+    owner  = db.StringField(max_length=200, required=True)
+    name   = db.StringField(max_length=200, required=True)
+    tested = db.BooleanField(default=False)
     authors = db.ListField(db.ReferenceField(User))
 
     def dict(self):
@@ -87,3 +94,18 @@ class Repository(db.Document):
             "owner" : self.owner,
             "name" : self.name
         }
+
+    def isWritable(self):
+        if g.user and g.user in self.authors:
+            return True
+        return False
+
+    def switch(owner, name, user):
+        repository = Repository.objects(authors__in=[user], owner__iexact=owner, name__iexact=name)
+        if len(repository) > 0:
+            repository = repository.first()
+            tested = not repository.tested
+            repository.update(tested=tested)
+            return tested
+        return None
+    
