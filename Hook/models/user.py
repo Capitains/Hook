@@ -1,5 +1,5 @@
-from app import db, github_api
-from flask import session, g
+from app import db, github_api, app
+from flask import session, g, url_for
 import datetime
 
 class User(db.Document):
@@ -87,6 +87,7 @@ class Repository(db.Document):
     owner  = db.StringField(max_length=200, required=True)
     name   = db.StringField(max_length=200, required=True)
     tested = db.BooleanField(default=False)
+    hook_id = db.IntField(default=None)
     authors = db.ListField(db.ReferenceField(User))
 
     def dict(self):
@@ -106,6 +107,48 @@ class Repository(db.Document):
             repository = repository.first()
             tested = not repository.tested
             repository.update(tested=tested)
-            return tested
+            return repository.hook()
         return None
     
+    def hook(self):
+        """ Create or delete hooks on GitHub API 
+
+        :returns: Active status
+        """
+        uri = "repos/{owner}/{repo}/hooks".format(owner=self.owner, repo=self.name)
+        payload = app.config["DOMAIN"] + url_for("api_test_payload")
+
+        if self.tested is True:
+            # Create hooks
+            hook_data = {
+              "name": "web",
+              "active": True,
+              "events": [
+                "push",
+                "pull_request"
+              ],
+              "config": {
+                "url": payload,
+                "content_type": "json",
+                "secret": app.config["GITHUB_HOOK_SECRET"]
+              }
+            }
+            hook = github_api.post(uri, data=hook_data)
+            if "id" in hook:
+                self.update(hook_id=hook["id"])
+        else:
+            uuid = None
+            if self.hook_id is None:
+                hooks = github_api.get(uri)
+                hooks = [hook for hook in hooks if hook["config"]["url"] == payload]
+                if len(hooks) == 0:
+                    uuid = None
+                else:
+                    uuid = hooks[0]["id"]
+            else:
+                uuid = self.hook_id
+            if uuid is not None:
+                github_api.delete("repos/{owner}/{repo}/hooks/{id}".format(owner=self.owner, repo=self.name, id=uuid))
+
+        self.reload()
+        return self.tested
