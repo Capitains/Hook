@@ -209,5 +209,5 @@ class RepoTest(db.Document):
                 access_token = user.github_access_token
                 params = {"access_token" : access_token}
 
-            print(github_api.post(uri, data=data, params=params))
+            github_api.post(uri, data=data, params=params)
         return True

@@ -12,13 +12,7 @@ EPIDOC = os.path.join(curr_dir, "../data/external/tei-epidoc.rng")
 TEI_ALL = os.path.join(curr_dir, "../data/external/tei_all.rng")
 JING = pkg_resources.resource_filename("jingtrang", "jing.jar")
 
-class CTSUnit(object):
-    """ CTS testing object
-
-    :param path: Path to the file
-    :type path: basestring
-
-    """
+class TESTUnit(object):
     def __init__(self, path):
         self.path = path
         self.xml = None
@@ -26,6 +20,7 @@ class CTSUnit(object):
         self.__logs = []
         self.__archives = []
         self.Text = False
+        self.urn = None
 
     @property
     def logs(self):
@@ -61,6 +56,68 @@ class CTSUnit(object):
         finally:
             yield self.testable
 
+
+class INVUnit(TESTUnit):
+    """ CTS testing object
+
+    :param path: Path to the file
+    :type path: basestring
+    """
+
+    tests = ["parsable"]
+    readable = {
+        "parsable" : "File parsing"
+    }
+
+    def capitain(self):
+        """ Load the file in MyCapytain
+        """
+        self.Text = MyCapytain.resources.texts.local.Text(resource=self.xml.getroot())
+        if self.Text:
+            yield True
+        else:
+            yield False
+
+    def test(self):
+        """ Test a file with various checks
+
+        :returns: List of urns
+        :rtype: list.<str>
+        
+        """
+        self.urns = []
+
+        for test in INVUnit.tests:
+            # Show the logs and return the status
+            self.flush()
+            try:
+                for status in getattr(self, test)():
+                    yield (INVUnit.readable[test], status, self.logs)
+                    self.flush()
+            except Exception as E:
+                status = False
+                self.error(E)
+                yield (INVUnit.readable[test], status, self.logs)
+
+class CTSUnit(TESTUnit):
+    """ CTS testing object
+
+    :param path: Path to the file
+    :type path: basestring
+
+    """
+    tests = ["parsable", "capitain", "has_urn", "naming_convention", "refsDecl", "passages", "inventory"]
+    readable = {
+        "parsable" : "File parsing",
+        "capitain" : "File ingesting in MyCapytain",
+        "refsDecl" : "RefsDecl parsing",
+        "passages" : "Passage level parsing",
+        "epidoc" : "Epidoc DTD validation",
+        "tei" : "TEI DTD Validation",
+        "has_urn" : "URN informations",
+        "naming_convention" : "Naming conventions",
+        "inventory" : "Available in inventory"
+    }
     def capitain(self):
         """ Load the file in MyCapytain
         """
@@ -113,7 +170,36 @@ class CTSUnit(object):
             self.log(str(len(passages)) + " found")
             yield status
 
-    def test(self, tei, epidoc):
+    def has_urn(self):
+        """ Test that a file has its urn saved
+        """
+        ns = {"tei" : "http://www.tei-c.org/ns/1.0"}
+        urns = self.xml.xpath("//tei:text[starts-with(@n, 'urn:cts:')]", namespaces=ns)
+        urns += self.xml.xpath("//tei:div[starts-with(@n, 'urn:cts:')]", namespaces=ns)
+        status = len(urns) > 0
+        if status:
+            logs = urns[0].get("n")
+            self.log(logs)
+            self.urn = logs
+        yield status
+
+    def naming_convention(self):
+        """ Check the naming convention of the file
+        """
+        if self.urn:
+            yield self.urn.split(":")[-1] in self.path
+        else:
+            yield False
+
+    def inventory(self):
+        """ Check the naming convention of the file
+        """
+        if self.urn:
+            yield self.urn in self.inv
+        else:
+            yield False
+
+    def test(self, tei, epidoc, inv=None):
         """ Test a file with various checks
 
         :param tei: Test with TEI DTD
@@ -122,29 +208,24 @@ class CTSUnit(object):
         :type epidoc: bool
         
         """
-        tests = ["parsable", "capitain", "refsDecl", "passages"]
+        if inv is None:
+            inv = []
+        self.inv = inv
+
+        tests = CTSUnit.tests
         if tei:
             tests.append("tei")
         if epidoc:
             tests.append("epidoc")
 
-        human = {
-            "parsable" : "File parsing",
-            "capitain" : "File ingesting in MyCapytain",
-            "refsDecl" : "RefsDecl parsing",
-            "passages" : "Passage level parsing",
-            "epidoc" : "Epidoc DTD validation",
-            "tei" : "TEI DTD Validation"
-        }
-        for test in tests:
+        for test in CTSUnit.tests:
             # Show the logs and return the status
             self.flush()
-
             try:
                 for status in getattr(self, test)():
-                    yield (human[test], status, self.logs)
+                    yield (CTSUnit.readable[test], status, self.logs)
                     self.flush()
             except Exception as E:
                 status = False
                 self.error(E)
-                yield (human[test], status, self.logs)
+                yield (CTSUnit.readable[test], status, self.logs)
