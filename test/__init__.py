@@ -123,7 +123,7 @@ passing = defaultdict(dict)
 files, cts__ = repo.find_files(directory)
 
 prnt(">>> Starting tests !")
-prnt("files="+str(len(files)))
+prnt("files="+str(len(files) + len(cts__)))
 
 # We load a thread pool which has 5 maximum workers
 with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:

@@ -1,5 +1,6 @@
 from lxml import etree
 import MyCapytain.resources.texts.local
+import MyCapytain.resources.inventory
 import os
 
 import jingtrang
@@ -64,17 +65,68 @@ class INVUnit(TESTUnit):
     :type path: basestring
     """
 
-    tests = ["parsable"]
+    tests = ["parsable", "capitain", "metadata"]
     readable = {
-        "parsable" : "File parsing"
+        "parsable" : "File parsing",
+        "capitain" : "MyCapytain parsing",
+        "metadata" : "Metadata availability"
     }
 
     def capitain(self):
         """ Load the file in MyCapytain
         """
-        self.Text = MyCapytain.resources.texts.local.Text(resource=self.xml.getroot())
+        textgroup = "textgroup" in self.xml.getroot().tag
+        work = not textgroup and "work" in self.xml.getroot().tag
+        if textgroup:
+            self.type = "textgroup"
+            self.log("TextGroup detected")
+            self.Text = MyCapytain.resources.inventory.TextGroup(resource=self.xml.getroot())
+        elif work:
+            self.type = "work"
+            self.log("Work detected")
+            self.Text = MyCapytain.resources.inventory.Work(resource=self.xml.getroot())
+        else:
+            self.log("Nothing detected")
+
         if self.Text:
             yield True
+        else:
+            yield False
+
+    def metadata(self):
+        if self.type == "textgroup":
+
+            groups = len(self.Text.metadata["groupname"].children)
+            self.log("{0} groupname found".format(str(groups)))
+            yield groups > 0
+
+        elif self.type == "work":
+
+            titles = len(self.Text.metadata["title"].children)
+            self.log("{0} titles found".format(titles))
+            status = titles > 0
+
+            texts = len(self.Text.texts)
+            labels = len(
+                [
+                    text for text in self.Text.texts.values()
+                    if len(text.metadata["label"].children) > 0
+                ]
+            )
+
+            self.log("{0}/{1} file(s) with labels".format(labels, texts))
+            status = status and labels == texts
+
+            descs = len(
+                [
+                    text for text in self.Text.texts.values()
+                    if len(text.metadata["description"].children) > 0
+                ]
+            )
+            self.log("{0}/{1} file(s) with descs".format(descs, texts))
+            status = status and labels == descs
+
+            yield status
         else:
             yield False
 
