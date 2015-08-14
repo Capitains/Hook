@@ -113,11 +113,21 @@ class CTSUnit(object):
             self.log(str(len(passages)) + " found")
             yield status
 
-    def test(self):
+    def test(self, tei, epidoc):
         """ Test a file with various checks
+
+        :param tei: Test with TEI DTD
+        :type tei: bool
+        :param epidoc: Test with EPIDOC DTD
+        :type epidoc: bool
+        
         """
-        tests = ["parsable", "capitain", "refsDecl", "passages", "tei"]
-        stop = []
+        tests = ["parsable", "capitain", "refsDecl", "passages"]
+        if tei:
+            tests.append("tei")
+        if epidoc:
+            tests.append("epidoc")
+
         human = {
             "parsable" : "File parsing",
             "capitain" : "File ingesting in MyCapytain",

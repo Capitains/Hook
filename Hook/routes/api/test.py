@@ -35,6 +35,13 @@ def api_test_status(username, reponame, slug, uuid):
         return jsonify(cancelled=True)
 
     answer = models.logs.RepoTest.report(username, reponame, slug=slug, uuid=uuid)
+    line = request.args.get("from")
+    if line:
+        line = int(line)
+        if len(answer["logs"]) > line + 3:
+            answer["logs"] = answer["logs"][line:]
+        else:
+            answer["logs"] = []
     return jsonify(answer)
 
 @app.route('/api/rest/v1.0/code/<username>/<reponame>')

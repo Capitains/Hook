@@ -88,6 +88,9 @@ class Repository(db.Document):
     name   = db.StringField(max_length=200, required=True)
     tested = db.BooleanField(default=False)
     hook_id = db.IntField(default=None)
+    dtd = db.StringField(default="t", max_length=1)
+    master_pr = db.BooleanField(default=False)
+    verbose = db.BooleanField(default=False)
     authors = db.ListField(db.ReferenceField(User))
 
     def dict(self):
@@ -152,3 +155,18 @@ class Repository(db.Document):
                 github_api.delete("repos/{owner}/{repo}/hooks/{id}".format(owner=self.owner, repo=self.name, id=uuid))
 
         return self.tested
+
+    def config(self, form):
+        """ Update the object config """
+        dtd, master_pr, verbose = self.dtd, False, False
+        if "dtd" in form:
+            if form["dtd"] in ["t", "e"]:
+                dtd = form["dtd"]
+        if "masterpr" in form:
+            master_pr = True
+        if "verbose" in form:
+            verbose = True
+
+        self.update(dtd=dtd, master_pr=master_pr, verbose=verbose)
+        self.reload()
+        self.updated = True

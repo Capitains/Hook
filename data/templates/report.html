@@ -33,7 +33,7 @@
         </div>
         <div class="row">
           <section class="col-md-12">
-            <ol class="logs">
+            <ol class="logs" id="log-container">
               {% for log in test.logs if log.text %}
                 <li>{{log.text|format_log}}</li>
               {% endfor %}
@@ -41,4 +41,18 @@
           </section>
         </div>
       </article>
+{% endblock %}
+
+{% block script %}
+{% if test.status is none %}
+<input type="hidden" href="{{url_for('api_test_status', username=test.username, reponame=test.reponame, slug=test.branch_slug, uuid=test.uuid)}}" data-target="#log-container" id="informations-log"/>
+<script type="text/javascript">
+  $(document).ready(function() {
+
+    reload($("#informations-log"));
+
+  });
+</script>
+<script src="{{url_for('static', filename='js/format.log.js')}}"></script>
+{% endif %}
 {% endblock %}

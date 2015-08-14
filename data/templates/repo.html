@@ -29,6 +29,53 @@
                   </button>
                 </div>
               </h2>
+              {% if repository.updated %}
+              <div class="alert alert-success" role="alert">
+                Settings were updated
+              </div>
+              {% endif %}
+              <form method="POST" action="{{url_for('repo', username=repository.owner, reponame=repository.name)}}" class="form form-horizontal">
+                <div class="form-group">
+                  <div class="col-sm-4">
+                    Scheme
+                  </div>
+                  <div class="col-sm-8">
+                    <div class="radio">
+                      <label>
+                        <input type="radio" name="dtd" value="t" {{repository.dtd|tei}}> TEI
+                      </label>
+                    </div>
+                    <div class="radio">
+                      <label>
+                        <input type="radio" name="dtd" value="e" {{repository.dtd|epidoc}}> Epidoc
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="col-sm-8 col-sm-offset-4">
+                    <div class="checkbox">
+                      <label>
+                        <input type="checkbox" name="masterpr" value="only" {{repository.master_pr|checked}}> Master and PR testing only
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="col-sm-8 col-sm-offset-4">
+                    <div class="checkbox">
+                      <label>
+                        <input type="checkbox" name="verbose" value="true" {{repository.verbose|checked}}> Verbose
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="col-sm-offset-2 col-sm-10">
+                    <button type="submit" class="btn btn-default btn-xs">Save</button>
+                  </div>
+                </div>
+              </form>
           </div>
           <div class="col-md-8">
           {% else %}
@@ -96,8 +143,7 @@
   </section>
 {% endblock %}
 {% block script %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>axis.tickFormat(d3.format(",.0f"))
-<script src="{{url_for('static', filename='js/bootstrap-switch.min.js')}}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
 <script>
 $(document).ready(function() {
   $(".run").on("click", function(event) {

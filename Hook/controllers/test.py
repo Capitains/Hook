@@ -39,7 +39,8 @@ TEST_PATH = "/home/thibault/hooks"
 
 int_finder = re.compile("([0-9]+)")
 pr_finder = re.compile("PR #([0-9]+)")
-
+rng = re.compile("([0-9]+):([0-9]+):(.*);")
+rng_fatal = re.compile("([0-9]+):([0-9]+):(\s*fatal.*)")
 def remove(uuid):
     """ Remove uuid object from current procs and Remove the cloned folder of the uuid identified repo
 
@@ -118,7 +119,7 @@ def test(uuid, repository, branch, db_obj):
     background_logs[uuid] = []
 
     background_proc[uuid] = subprocess.Popen(
-        ["/usr/bin/python3", SCRIPT_PATH + "__init__.py", "-n", uuid, repository, branch, TEST_PATH],
+        ["/usr/bin/python3", SCRIPT_PATH + "__init__.py", "-"+"".join(db_obj.config_to()), uuid, repository, branch, TEST_PATH],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         shell=False
@@ -158,6 +159,16 @@ def watch(uuid, repository, branch):
     if report is None:
         background_timer[uuid] = threading.Timer(10, lambda: watch(uuid, repository, branch)).start()
     return True
+
+def format_log(log):
+    found = rng.findall(log)
+    if len(found) > 0:
+        log = ">>>>>> DTD l{0} c{1} : {2}".format(*found[0])
+    else:
+        found = rng_fatal.findall(log)
+        if len(found) > 0:
+            log = ">>>>>> DTD l{0} c{1} : {2}".format(*found[0])
+    return log
 
 def read(username, reponame, branch, uuid):
     """ Exploit logs informations 
@@ -204,7 +215,8 @@ def read(username, reponame, branch, uuid):
     else:
         report = None
 
-    logs = [line for line in logs if line != "\n" and line]
+    logs = [format_log(line) for line in logs if line != "\n" and line]
+
     if uuid in background_git:
         logs = [line for line in background_git[uuid].json()] + logs
 
@@ -360,6 +372,12 @@ def api_test_generate(username, reponame, branch=None, creator=None, gravatar=No
     if len(running) > 0:
         return Response(
             response=json.dumps({"error" : "Test already running on this branch"}),
+            headers={"Content-Type": "application/json"},
+            status="404"
+        )
+    elif not models.logs.RepoTest.is_ok(username=username, reponame=reponame, branch=branch):
+        return Response(
+            response=json.dumps({"error" : "This branch is not taken into account by our configuration"}),
             headers={"Content-Type": "application/json"},
             status="404"
         )

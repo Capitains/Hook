@@ -37,7 +37,7 @@ def prnt(data):
     print(data.replace(directory, reponame), flush=True)
 
 
-def do_test(f):
+def do_test(f, tei, epidoc, verbose):
     """ Do test for a file and print the results
 
     :param f: Path of the file to be tested
@@ -52,7 +52,7 @@ def do_test(f):
     else:
         t = test.CTSUnit(f)
         logs.append(">>>> Testing "+ f.split("data")[-1])
-        for name, status, op in t.test():
+        for name, status, op in t.test(tei, epidoc):
             
             if status:
                 status_str = " passed"
@@ -85,7 +85,8 @@ else:
     opts = list()
 
 verbose = "v" in opts
-
+tei = "t" in opts
+epidoc = "e" in opts
 """ 
     Results storing variables initialization
 """
@@ -102,7 +103,7 @@ prnt("files="+str(len(files)))
 # We load a thread pool which has 5 maximum workers
 with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
     # We create a dictionary of tasks which 
-    tasks = {executor.submit(do_test, target_file): target_file for target_file in files}
+    tasks = {executor.submit(do_test, target_file, tei, epidoc, verbose): target_file for target_file in files}
     # We iterate over a dictionary of completed tasks
     for future in concurrent.futures.as_completed(tasks):
         logs = future.result()

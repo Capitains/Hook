@@ -82,7 +82,7 @@ ol.logs {
 }
 ol.logs > li {
     position:relative; /* Create a positioning context */
-    margin:0 0 0px 3em; /* Give each list item a left margin to make room for the numbers */
+    margin:0 0 0px 4em; /* Give each list item a left margin to make room for the numbers */
     padding:1px 2px; /* Add some spacing around the content */
     list-style:none; /* Disable the normal item numbering */
 }
@@ -95,17 +95,21 @@ ol.logs .success {
 ol.logs .failure {
   color:#a54242;
 }
+ol.logs .verbose {
+  padding-left:15px;
+  font-size:0.9em;
+}
 ol.logs > li:before {
     content:counter(li); /* Use the counter as content */
     counter-increment:li; /* Increment the counter by 1 */
     /* Position and style the number */
     position:absolute;
     top:-2px;
-    left:-3em;
+    left:-4em;
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box;
     box-sizing:border-box;
-    width:3em;
+    width:4em;
     /* Some space between the number and the content in browsers that support
        generated content but not positioning it (Camino 2 is one example) */
     margin-right:8px;
