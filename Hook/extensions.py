@@ -18,5 +18,4 @@ db = MongoEngine()
 github_api = GitHub()
 login_manager = LoginManager()
 
-conf, env = read_yaml(os.path.join(os.getcwd(), 'config.yaml'))
-
+conf, env = read_yaml(os.path.join(os.path.dirname(__file__), 'config.yaml'))

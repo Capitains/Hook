@@ -2,8 +2,7 @@ import datetime
 
 from flask import session, g, url_for
 
-from Hook.extensions import db, github_api
-from Hook.app import app
+from Hook.app import app, db, github_api
 
 class User(db.Document):
     """ User informations """
