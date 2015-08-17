@@ -9,13 +9,13 @@ def _slugify(string):
     return slugify(string)
 
 @app.template_filter('checked')
-def _bool(boolean):
+def _checked_bool(boolean):
     if boolean:
         return " checked "
     return ""
 
 @app.template_filter('btn')
-def _bool(boolean):
+def _btn_bool(boolean):
     if boolean:
         return "btn-success"
     return "btn-danger"
@@ -25,12 +25,12 @@ def _format_log(string):
     if not string:
         return ""
     else:
-        if string.startswith(">>>> "):
-            string = Markup("<b>{0}</b>".format(string.strip(">")))
+        if string.startswith(">>> "):
+            string = Markup("<u>{0}</u>".format(string.strip(">>> ")))
+        elif string.startswith(">>>> "):
+            string = Markup("<b>{0}</b>".format(string.strip(">>>> ")))
         elif string.startswith(">>>>> "):
-            string = Markup("<i>\t{0}</i>".format(string.strip(">")))
-        elif string.startswith(">>> "):
-            string = Markup("<u>{0}</u>".format(string.strip(">")))
+            string = Markup("<i>{0}</i>".format(string.strip(">>>>> ")))
         elif string.startswith(">>>>>> "):
             string = Markup("<span class='verbose'>{0}</span>".format(string.strip(">>>>>> ")))
         elif string.startswith("[success]"):
@@ -54,12 +54,8 @@ def _check_epidoc(string):
 @app.template_filter('success_class')
 def _success_class(status):
     string = ""
-    try:
-        if status is True:
-            string = "success"
-        elif status is False:
-            string = "failure"
-    except:
-        string = ""
-    finally:
-        return string
+    if status is True:
+        string = "success"
+    elif status is False:
+        string = "failure"
+    return string
