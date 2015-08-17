@@ -1,90 +1,214 @@
-{% extends "container.html" %}
+{% extends "container-2col.html" %}
 
 
 {% block body %}
-{% include "header.html" %}
-<div style="padding-top: 50px;">
-    <div class="container">
-        <div class="row">
-            <nav class="col-md-3">
-            </nav>
-            <section class="col-md-9">
-                <header>
-                    <h1>
-                        {{username}}/{{reponame}}
-                        <img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame) }}" />
-                        <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame) }}" />
-                    </h1>
-                </header>
-                <div class="row">
-                    <div class="col-md-4">
-                        <h2>Coverage settings</h2>
-
-                    </div>
-                    <div class="col-md-8">
-                        <h2>History and progression</h2>
-                        <div id="history"></div>
-                    </div>
+  <section>
+      <header>
+          <h1>
+              {{repository.owner}}/{{repository.name}}<a href="https://github.com/{{repository.owner}}/{{repository.name}}">
+                <span class="fa fa-github"></span>
+              </a> 
+              {% if not repository.isWritable() %}
+              <div class="btn {{repository.tested|btn}} btn-xs"><span class="glyphicon glyphicon-off"></span></div>
+              {% endif %}
+              <img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name) }}" />
+              <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name) }}" />
+              <img alt="CTS badge" src="{{ url_for('repo_cts_status', username=repository.owner, reponame=repository.name) }}" />
+          </h1>
+      </header>
+      <div class="row">
+          {% if repository.isWritable() %}
+          <div class="col-md-4">
+              <h2>
+                Settings
+                <div class="pull-right">
+                  {% if repository.tested %}
+                  <a href="{{url_for('api_test_generate_route', username=repository.owner, reponame=repository.name)}}" class="btn btn-xs btn-info run">Run</a>
+                  {% endif %}
+                  <button id="state" class="btn {{repository.tested|btn}} btn-xs">
+                    <span class="glyphicon glyphicon-off"></span>
+                    <span class="fa fa-refresh" style="display: none;"></span>
+                  </button>
                 </div>
-                <div class="row">
-                    <div class="col-md-12">
-                        <h2>Past tests</h2>
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Reference</th>
-                                    <th>User</th>
-                                    <th>Status</th>
-                                    <th>Coverage</th>
-                                    <th>Files tested</th>
-                                    <th>Files passing</th>
-                                    <th>Logs</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for test in running %}
-
-                                    <tr class="warning">
-                                        <td>{{test.run_at}}</td>
-                                        <td>{{test.branch}}</td>
-                                        <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
-                                        <td colspan="4">
-                                          <div class="progress">
-                                            <div class="progress-bar" role="progressbar" aria-valuenow="{{test.percent}}" aria-valuemin="0" aria-valuemax="100" style="width: {{test.percent}}%;">
-                                            {{test.percent}}%
-                                            </div>
-                                          </div>
-                                        </td>
-                                        <td><a href="{{url_for('repo_test_report', username=username, reponame=reponame, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
-                                    </tr>
-                                {% endfor %}
-                                {% for test in tests %}
-
-                                    <tr>
-                                        <td>{{test.run_at}}</td>
-                                        <td>{{test.branch}}</td>
-                                        <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
-                                        <td><img alt="Status badge" src="{{ url_for('repo_badge_status', username=username, reponame=reponame, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
-                                        <td><img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=username, reponame=reponame, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
-                                        <td>{{test.total}}</td>
-                                        <td>{{test.tested}}</td>
-                                        <td><a href="{{url_for('repo_test_report', username=username, reponame=reponame, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+              </h2>
+              {% if repository.updated %}
+              <div class="alert alert-success" role="alert">
+                Settings were updated
+              </div>
+              {% endif %}
+              <form method="POST" action="{{url_for('repo', username=repository.owner, reponame=repository.name)}}" class="form form-horizontal">
+                <div class="form-group">
+                  <div class="col-sm-4">
+                    Scheme
+                  </div>
+                  <div class="col-sm-8">
+                    <div class="radio">
+                      <label>
+                        <input type="radio" name="dtd" value="t" {{repository.dtd|tei}}> TEI
+                      </label>
                     </div>
+                    <div class="radio">
+                      <label>
+                        <input type="radio" name="dtd" value="e" {{repository.dtd|epidoc}}> Epidoc
+                      </label>
+                    </div>
+                  </div>
                 </div>
-            </section>
-        </div>
-    </div>
-</div>
+                <div class="form-group">
+                  <div class="col-sm-8 col-sm-offset-4">
+                    <div class="checkbox">
+                      <label>
+                        <input type="checkbox" name="masterpr" value="only" {{repository.master_pr|checked}}> Master and PR testing only
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="col-sm-8 col-sm-offset-4">
+                    <div class="checkbox">
+                      <label>
+                        <input type="checkbox" name="verbose" value="true" {{repository.verbose|checked}}> Verbose
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="col-sm-offset-2 col-sm-10">
+                    <button type="submit" class="btn btn-default btn-xs">Save</button>
+                  </div>
+                </div>
+              </form>
+          </div>
+          <div class="col-md-8">
+          {% else %}
+          <div class="col-md-12">
+          {% endif %}
+              <h2>History and progression</h2>
+              <div id="history"></div>
+          </div>
+      </div>
+      <div class="row">
+          <div class="col-md-12">
+              <h2>Past tests</h2>
+              <table class="table table-striped">
+                  <thead>
+                      <tr>
+                          <th>Date</th>
+                          <th>Reference</th>
+                          <th>User</th>
+                          <th>Status</th>
+                          <th>Coverage</th>
+                          <th>Files tested</th>
+                          <th>Files passing</th>
+                          <th>Logs</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      {% for test in running %}
 
+                          <tr class="warning">
+                              <td>{{test.run_at}}</td>
+                              <td>{{test.branch}}</td>
+                              <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
+                              <td colspan="4">
+                                <div class="progress">
+                                  <div class="progress-bar" role="progressbar" aria-valuenow="{{test.percent}}" aria-valuemin="0" aria-valuemax="100" style="width: {{test.percent}}%;">
+                                  {{test.percent}}%
+                                  </div>
+                                </div>
+                              </td>
+                              <td>
+                                {% if repository.isWritable() %}
+                                <a href="{{url_for('api_test_status', username=repository.owner, reponame=repository.name, uuid=test.uuid, slug=test.branch_slug)}}" class="btn btn-xs btn-danger cancel-test" style="margin:1px;"><span class="glyphicon glyphicon-remove"></span></a> 
+                                {% endif %}
+                                <a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a>
+                              </td>
+                          </tr>
+                      {% endfor %}
+                      {% for test in tests %}
+
+                          <tr>
+                              <td>{{test.run_at}}</td>
+                              <td>{{test.branch}}</td>
+                              <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
+                              <td><img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
+                              <td><img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
+                              <td>{{test.total}}</td>
+                              <td>{{test.tested}}</td>
+                              <td><a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
+                          </tr>
+                      {% endfor %}
+                  </tbody>
+              </table>
+          </div>
+      </div>
+  </section>
+{% endblock %}
+{% block script %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
 <script>
+$(document).ready(function() {
+  $(".run").on("click", function(event) {
+    event.preventDefault();
+    var that = $(this);
+    $.ajax(that.attr("href"))
+      .success(function(data) {
+        location.href = "/repo/{{repository.owner}}/{{repository.name}}/" + data.uuid;
+      }).error(function(data) {
+        alert(data.responseJSON.error);
+      });
+  });
 
-var margin = {top: 20, right: 20, bottom: 30, left: 20},
+  $(".cancel-test").on("click", function(e) {
+    e.preventDefault();
+    var that = $(this),
+        uri = that.attr("href");
+
+    $.ajax({
+      url: uri,
+      type: 'DELETE',
+      success: function(data) {
+        location.reload();
+      },
+      error : function(data) {
+        alert("Error while canceling");
+        location.reload();
+      }
+    });
+  })
+
+  $('#state').on('click', function(event) {
+    event.preventDefault();
+    var el = $(this),
+        spinner = el.find(".fa-refresh"),
+        on = el.find(".glyphicon-off");
+    el.removeClass("btn-success btn-danger").addClass("btn-default");
+    spinner.show().addClass("fa-spin");
+    on.hide();
+
+    $.ajax({
+      url: '{{url_for("api_user_repository_switch", owner=repository.owner, name=repository.name)}}',
+      type: 'PUT',
+      success: function(data) {
+        spinner.removeClass("fa-spin").hide();
+        el.removeClass("btn-default")
+        on.show();
+        if(data.status && data.status == true) {
+          el.addClass("btn-success");
+          location.reload();
+        } else if(data.status === false) {
+          el.addClass("btn-danger");
+        } else {
+          alert("Error during switch of the repository")
+        }
+      },
+      error : function(data) {
+        alert("Error during switch of the repository")
+      }
+    });
+  });
+});
+var margin = {top: 20, right: 20, bottom: 30, left: 40},
     width = parseInt(d3.select("#history").style("width")) - margin.left - margin.right - Math.floor(parseInt(d3.select("#history").style("width"))/10),
     height = parseInt(d3.select("#history").style("width"))/16*9 - margin.top -margin.bottom;
 
@@ -93,9 +217,7 @@ var parseDate = d3.time.format("%a, %d %b %Y %X").parse;
 var x = d3.time.scale()
     .range([0, width]);
 
-var y = d3.scale.linear()
-    .range([height, 0])
-    .domain([0,100]);
+var y = d3.scale.linear().range([height, 0]);
 
 var xAxis = d3.svg.axis()
     .scale(x)
@@ -103,11 +225,13 @@ var xAxis = d3.svg.axis()
 
 var yAxis = d3.svg.axis()
     .scale(y)
-    .orient("left");
+    .ticks(4)
+    .orient("right")
+    .tickFormat(function(d) { return d/100;});
 
 var line = d3.svg.line()
     .x(function(d) { return x(Date.parse(d.run_at)); })
-    .y(function(d) { return y(Math.floor(d.coverage)); });
+    .y(function(d) { return y(Math.round(d.coverage *100)); });
 
 
 var svg = d3.select("#history").append("svg")
@@ -116,13 +240,13 @@ var svg = d3.select("#history").append("svg")
   .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-d3.json("{{ url_for('api_repo_history', username=username, reponame=reponame) }}", function(error, data) {
+d3.json("{{ url_for('api_repo_history', username=repository.owner, reponame=repository.name) }}", function(error, data) {
   if (error) throw error;
 
   data = data.logs;
 
   x.domain(d3.extent(data, function(d) { return Date.parse(d.run_at); }));
-  y.domain(d3.extent(data, function(d) { console.log(Math.floor(d.coverage)); return Math.floor(d.coverage); }));
+  y.domain(d3.extent(data, function(d) { return Math.round(d.coverage *100); }));
 
   svg.append("g")
       .attr("class", "x axis")

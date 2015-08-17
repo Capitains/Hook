@@ -1,7 +1,13 @@
 import datetime
-from app import db
 from utils import slugify
+from flask import url_for, g
 
+
+from app import db, github_api, app
+from models.user import *
+import re
+
+pr_finder = re.compile("PR #([0-9]+)")
 
 class DocLogs(db.EmbeddedDocument):
     """ Unittest level logs """
@@ -36,6 +42,7 @@ class RepoTest(db.Document):
     units = db.EmbeddedDocumentListField(DocTest)
     total = db.IntField(default=1)
     tested = db.IntField(default=0)
+    config = db.ListField(db.StringField())
 
     user = db.StringField(default="")
     gravatar = db.StringField(default="")
@@ -44,6 +51,10 @@ class RepoTest(db.Document):
     meta = {
         'ordering': ['-run_at']
     }
+
+    def ctsized(self):
+        units = [unit.status for unit in  self.units if "__cts__.xml" not in unit.path]
+        return units.count(True), len(units)
 
     def Get_or_Create(uuid, username, reponame, branch=None, slug=None, save=False):
         """ Find said RepoTest is not found, create an instance for it
@@ -83,13 +94,15 @@ class RepoTest(db.Document):
                 branch_slug=slug
             )
         if len(repo_test) == 0:
+            repository = Repository.objects.get(owner__iexact=username, name__iexact=reponame)
             repo_test = RepoTest(
                 uuid=uuid,
                 username=username,
                 reponame=reponame,
                 branch=branch,
                 userrepo=username+"/"+reponame,
-                branch_slug=slug
+                branch_slug=slug,
+                config=RepoTest.config_from(repository)
             )
             if save is True:
                 repo_test.save()
@@ -97,7 +110,29 @@ class RepoTest(db.Document):
             repo_test = repo_test.first()
         return repo_test
 
-    def report(username, reponame, branch=None, uuid=None, repo_test=None):
+    def is_ok(username, reponame, branch):
+        """ Check that the test is accepted by config """
+        repository = Repository.objects.get(owner__iexact=username, name__iexact=reponame)
+        if repository.master_pr and branch != "master" and pr_finder.match(branch) is None:
+            return False
+        return True
+
+    def config_from(repository):
+        """ Make a RepoTest config from a Repository object """
+        config = []
+        dtds = {"t" : "tei", "e": "epidoc"}
+        config.append(dtds[repository.dtd])
+
+        if repository.verbose:
+            config.append("verbose")
+
+        return config
+
+    def config_to(self):
+        dtds = {"tei" : "t", "epidoc": "e", "verbose" : "v"}
+        return [dtds[key] for key in self.config if key in dtds]
+
+    def report(username, reponame, slug=None, uuid=None, repo_test=None):
         """ Return the logs and status when the test is finished 
 
 
@@ -105,8 +140,8 @@ class RepoTest(db.Document):
         :type username: str
         :param reponame: Name of the repository
         :type reponame: str
-        :param branch: branch to be tested
-        :type branch: str
+        :param slug: branch to be tested
+        :type slug: str
         :param uuid: Unique identifier for the current test
         :type uuid: str
 
@@ -114,12 +149,12 @@ class RepoTest(db.Document):
         :rtype: list, dict, dict, int
         """
         if repo_test is None:
-            repo_test = RepoTest.objects.get_or_404(username=username, reponame=reponame, branch=branch, uuid=uuid)
+            repo_test = RepoTest.objects.get_or_404(username=username, reponame=reponame, branch_slug__iexact=slug, uuid=uuid)
 
         units = {}
 
         if repo_test.status is None:
-            done=0
+            done=None
         else:
             done = int(repo_test.status)
 
@@ -142,3 +177,37 @@ class RepoTest(db.Document):
         }
 
         return answer
+
+    def git_status(self, state=None):
+
+        with app.app_context():
+            uri = "repos/{owner}/{repo}/statuses/{sha}".format(owner=self.username, repo=self.reponame, sha=self.sha)
+            if state is not None:
+                state = "error"
+                sentence = "Test cancelled"
+            elif self.status is True:
+                state = "success"
+                sentence = "Full repository is cts compliant"
+            elif self.status is False:
+                state = "failure"
+                sentence = "{0} of unit tests passed".format(self.coverage)
+            else:
+                state = "pending"
+                sentence = "Currently testing..."
+
+            data = {
+              "state": state,
+              "target_url": app.config["DOMAIN"]+"/repo/{username}/{reponame}/{uuid}".format(username=self.username, reponame=self.reponame, uuid=self.uuid),
+              "description": sentence,
+              "context": "continuous-integration/capitains-hook"
+            }
+
+            params = {}
+            if hasattr(g, "user") is not True:
+                full_repository = Repository.objects.get(owner__iexact=self.username, name__iexact=self.reponame)
+                user = full_repository.authors[0]
+                access_token = user.github_access_token
+                params = {"access_token" : access_token}
+
+            github_api.post(uri, data=data, params=params)
+        return True

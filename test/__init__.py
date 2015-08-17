@@ -5,10 +5,13 @@ from sys import argv, stdout, exit
 import subprocess
 import time
 import concurrent.futures
+
 import repo
 import test
 import json
 import statistics
+
+inv = []
 
 def cover(test):
     """ Given a dictionary, compute the coverage of one item 
@@ -37,7 +40,7 @@ def prnt(data):
     print(data.replace(directory, reponame), flush=True)
 
 
-def do_test(f):
+def do_test(f, tei, epidoc, verbose, inventory=None):
     """ Do test for a file and print the results
 
     :param f: Path of the file to be tested
@@ -47,12 +50,34 @@ def do_test(f):
     :rtype: list
     """
     logs = []
+    if not inventory:
+        inventory = []
     if f.endswith("__cts__.xml"):
-        logs.append(f + " is a metadata file")
+        t = test.INVUnit(f)
+        logs.append(">>>> Testing "+ f)
+
+        for name, status, op in t.test():
+            
+            if status:
+                status_str = " passed"
+            else:
+                status_str = " failed"
+
+            logs.append(">>>>> " +name + status_str)
+
+            if verbose:
+                logs.append("\n".join([o for o in op]))
+
+            results[f][name] = status
+
+        results[f] = cover(results[f])
+        passing[f.replace("/", ".")] = True == results[f]["status"]
+        inventory += t.urns
+
     else:
         t = test.CTSUnit(f)
         logs.append(">>>> Testing "+ f.split("data")[-1])
-        for name, status, op in t.test():
+        for name, status, op in t.test(tei, epidoc, inventory):
             
             if status:
                 status_str = " passed"
@@ -69,7 +94,7 @@ def do_test(f):
         results[f] = cover(results[f])
         passing[f.split("/")[-1]] = True == results[f]["status"]
 
-    return logs + ["test+=1"]
+    return logs + ["test+=1"], inventory
 
 """
     Initialization and parameters recovering
@@ -85,7 +110,8 @@ else:
     opts = list()
 
 verbose = "v" in opts
-
+tei = "t" in opts
+epidoc = "e" in opts
 """ 
     Results storing variables initialization
 """
@@ -94,18 +120,28 @@ verbose = "v" in opts
 results = defaultdict(dict)
 passing = defaultdict(dict)
 
-files = repo.find_files(directory)
+files, cts__ = repo.find_files(directory)
 
 prnt(">>> Starting tests !")
-prnt("files="+str(len(files)))
+prnt("files="+str(len(files) + len(cts__)))
 
 # We load a thread pool which has 5 maximum workers
 with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
     # We create a dictionary of tasks which 
-    tasks = {executor.submit(do_test, target_file): target_file for target_file in files}
+    tasks = {executor.submit(do_test, target_file, tei, epidoc, verbose, inv): target_file for target_file in cts__}
     # We iterate over a dictionary of completed tasks
     for future in concurrent.futures.as_completed(tasks):
-        logs = future.result()
+        logs, inv = future.result()
+        for log in logs:
+            prnt(log)
+
+# We load a thread pool which has 5 maximum workers
+with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    # We create a dictionary of tasks which 
+    tasks = {executor.submit(do_test, target_file, tei, epidoc, verbose, inv): target_file for target_file in files}
+    # We iterate over a dictionary of completed tasks
+    for future in concurrent.futures.as_completed(tasks):
+        logs, inv = future.result()
         for log in logs:
             prnt(log)
 

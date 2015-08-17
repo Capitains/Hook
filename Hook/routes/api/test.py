@@ -1,12 +1,15 @@
-from flask import abort, jsonify, request
-from app import app
+from flask import abort, jsonify, request, g, Response
+from app import app, github_api
+from flask.ext.login import login_required
 
 import controllers.test
 import models.logs
+import models.user
 import json
 
-# @app.route('/api/rest/v1.0/code/<username>/<reponame>/test', defaults= { "branch" : None})
-def api_test_generate(username, reponame, branch, creator=None, gravatar=None, sha=None):
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/test', defaults= { "branch" : None})
+@login_required
+def api_test_generate_route(username, reponame, branch=None, creator=None, gravatar=None, sha=None):
     """ Generate a test on the machine
 
     :param username: Name of the user
@@ -18,24 +21,27 @@ def api_test_generate(username, reponame, branch, creator=None, gravatar=None, s
 
     .:warning:. DISABLED
     """
-    if branch is None:
-        branch = request.form.get("branch")
+    return controllers.test.api_test_generate(username, reponame, branch, creator, gravatar, sha)
 
-    uuid, slug = controllers.test.launch(username, reponame, branch, creator, gravatar, sha)
-
-    return jsonify(
-        id=uuid,
-        repository=reponame,
-        username=username,
-        branch=branch,
-        status="/api/rest/v1.0/code/{0}/{1}/{2}/test/{3}".format(username, reponame, slug, uuid)
-    )
-
-@app.route('/api/rest/v1.0/code/<username>/<reponame>/<slug>/test/<uuid>')
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/<slug>/test/<uuid>', methods=["GET", "DELETE"])
 def api_test_status(username, reponame, slug, uuid):
     """ Show status of a test
     """
-    answer = models.logs.RepoTest.report(username, reponame, branch_slug=slug, uuid=uuid)
+    if request.method == "DELETE":
+        test = models.logs.RepoTest.objects.get_or_404(username__iexact=username, reponame__iexact=reponame, branch_slug__iexact=slug, uuid=uuid)
+        controllers.test.remove(test.uuid)
+        test.update(status=False, total=0, tested=0)
+        test.git_status(True)
+        return jsonify(cancelled=True)
+
+    answer = models.logs.RepoTest.report(username, reponame, slug=slug, uuid=uuid)
+    line = request.args.get("from")
+    if line:
+        line = int(line)
+        if len(answer["logs"]) > line + 3:
+            answer["logs"] = answer["logs"][line:]
+        else:
+            answer["logs"] = []
     return jsonify(answer)
 
 @app.route('/api/rest/v1.0/code/<username>/<reponame>')
@@ -58,34 +64,3 @@ def api_repo_history(username, reponame):
         ]
     }
     return jsonify(history)
-
-@app.route("/payload", methods=['POST'])
-def api_test_payload():
-    """ Handle GitHub payload 
-    """
-    payload = request.get_json(force=True)
-    informations = {
-        "sha" : request.headers.get("X-Hub-Signature"),
-        "delivery" : request.headers.get("X-GitHub-Delivery"),
-        "user" : request.headers.get("User-Agent")
-    }
-
-    username, reponame = tuple(payload["repository"]["full_name"].split("/"))
-    event = request.headers.get("X-GitHub-Event")
-
-    if event == "push":
-        creator = payload["head_commit"]["committer"]["username"]
-        gravatar = "https://avatars.githubusercontent.com/{0}".format(creator)
-        sha = payload["head_commit"]["id"]
-        return api_test_generate(username, reponame, payload["ref"], creator, gravatar, sha)
-    elif event == "pull_request":
-        creator = payload["pull_request"]["user"]["login"]
-        gravatar = "https://avatars.githubusercontent.com/{0}".format(creator)
-        sha = payload["pull_request"]["merge_commit_sha"]
-        return api_test_generate(username, reponame, payload["number"], creator, gravatar, sha)
-
-
-    return jsonify(
-        headers=informations,
-        payload=payload
-    )

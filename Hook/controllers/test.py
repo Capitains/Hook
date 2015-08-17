@@ -17,7 +17,11 @@ import re
 
 # Database imports
 from models.logs import *
-    
+
+from app import app, github_api
+from flask import g, jsonify, Response
+import models.user
+import models.logs
 
 """
     Dictionaries for status checking
@@ -27,14 +31,50 @@ background_logs = {}
 background_git = {}
 background_proc = {}
 background_inf = {}
+background_timer = {}
+background_main = {}
 
 SCRIPT_PATH = "/home/thibault/dev/capitains/Hook/test/"
 TEST_PATH = "/home/thibault/hooks"
 
 int_finder = re.compile("([0-9]+)")
 pr_finder = re.compile("PR #([0-9]+)")
+rng = re.compile("([0-9]+):([0-9]+):(.*);")
+rng_fatal = re.compile("([0-9]+):([0-9]+):(\s*fatal.*)")
+def remove(uuid):
+    """ Remove uuid object from current procs and Remove the cloned folder of the uuid identified repo
 
-def test(uuid, repository, branch):
+    :param uuid:
+    :type uuid:
+    """
+    if uuid in background_status:
+        del background_status[uuid]
+
+    if uuid in background_logs:
+        del background_logs[uuid]
+
+    if uuid in background_main:
+        # Need to find a way to kill if necessary
+        #background_main[uuid].kill()
+        del background_main[uuid]
+
+    if uuid in background_git:
+        del background_git[uuid]
+
+    if uuid in background_proc:
+        background_proc[uuid].kill()
+        del background_proc[uuid]
+
+    if uuid in background_inf:
+        del background_inf[uuid]
+
+    if uuid in background_timer:
+        background_timer[uuid].kill()
+        del background_timer[uuid]
+
+    shutil.rmtree(TEST_PATH + "/" + str(uuid), ignore_errors=True)
+
+def test(uuid, repository, branch, db_obj):
     """ Download, clone and launch the test
 
     :param uuid: Unique identifier for the current test
@@ -43,9 +83,13 @@ def test(uuid, repository, branch):
     :type repository: str
     :param branch: branch to be tested
     :type branch: str
+    :param db_obj: Repo instance of the database
+    :type db_obj: models.logs.RepoTest
 
     """
     target = TEST_PATH + "/" + str(uuid)
+
+    db_obj.git_status()
 
     #
     # Taking care of cloning :
@@ -75,7 +119,7 @@ def test(uuid, repository, branch):
     background_logs[uuid] = []
 
     background_proc[uuid] = subprocess.Popen(
-        ["/usr/bin/python3", SCRIPT_PATH + "__init__.py", "-n", uuid, repository, branch, TEST_PATH],
+        ["/usr/bin/python3", SCRIPT_PATH + "__init__.py", "-"+"".join(db_obj.config_to()), uuid, repository, branch, TEST_PATH],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         shell=False
@@ -113,8 +157,18 @@ def watch(uuid, repository, branch):
     logs, report, inf, status = read(username, reponame, branch, uuid)
 
     if report is None:
-        threading.Timer(10, lambda: watch(uuid, repository, branch)).start()
+        background_timer[uuid] = threading.Timer(10, lambda: watch(uuid, repository, branch)).start()
     return True
+
+def format_log(log):
+    found = rng.findall(log)
+    if len(found) > 0:
+        log = ">>>>>> DTD l{0} c{1} : {2}".format(*found[0])
+    else:
+        found = rng_fatal.findall(log)
+        if len(found) > 0:
+            log = ">>>>>> DTD l{0} c{1} : {2}".format(*found[0])
+    return log
 
 def read(username, reponame, branch, uuid):
     """ Exploit logs informations 
@@ -161,19 +215,22 @@ def read(username, reponame, branch, uuid):
     else:
         report = None
 
-    logs = [line for line in background_git[uuid].json()] + [line for line in logs if line != "\n" and line]
+    logs = [format_log(line) for line in logs if line != "\n" and line]
+
+    if uuid in background_git:
+        logs = [line for line in background_git[uuid].json()] + logs
 
     answer = (logs, report, background_inf[uuid], background_status[uuid])
 
-    update(report, logs, username, reponame, branch, uuid, nb_files, tested)
+    repository = update(report, logs, username, reponame, branch, uuid, nb_files, tested)
 
     if report is not None:
-        remove(uuid)
-        del background_git[uuid]
-        del background_status[uuid]
-        del background_logs[uuid]
-        del background_proc[uuid]
-        del background_inf[uuid]
+        # Update the status on github
+        repository.git_status()
+        try:
+            remove(uuid)
+        except Exception as E:
+            print(E)
 
     return answer
 
@@ -210,15 +267,15 @@ def update(report, logs, username, reponame, branch, uuid, nb_files=1, tested=0)
     repo_test.tested = tested
     repo_test.branch = branch
 
+    # Save the full logs
+    for line in logs:
+        repo_test.logs.append(RepoLogs(text=line))
+
     if report is not None:
 
         # Save direct informations
         repo_test.status=report["status"]
         repo_test.coverage=report["coverage"]
-
-        # Save the full logs
-        for line in logs:
-            repo_test.logs.append(RepoLogs(text=line))
 
         for document_name, document_test in report["units"].items():
             document_mongo = DocTest(
@@ -236,6 +293,7 @@ def update(report, logs, username, reponame, branch, uuid, nb_files=1, tested=0)
             repo_test.units.append(document_mongo)
 
     repo_test.save()
+    return repo_test
 
 def launch(username, reponame, ref, creator, gravatar, sha):
     """ Launch test into multithread.
@@ -254,7 +312,6 @@ def launch(username, reponame, ref, creator, gravatar, sha):
     if isinstance(ref, int):
         ref = "PR #{0}".format(ref)
     elif "/" in ref:
-        print(ref)
         ref = ref.split("/")[-1]
 
     uuid = str(uuid4())
@@ -266,17 +323,71 @@ def launch(username, reponame, ref, creator, gravatar, sha):
     repo.sha = sha
     repo.save()
 
-    t = threading.Thread(target=lambda: test(uuid, username + "/" + reponame, ref))
-    t.start()
+    background_main[uuid] = threading.Thread(target=lambda: test(uuid, username + "/" + reponame, ref, repo))
+    background_main[uuid].start()
     watch(uuid, username + "/" + reponame, ref)
 
     return uuid, repo.branch_slug
 
-def remove(uuid):
-    """ Remove the cloned folder of the uuid identified repo
 
-    :param uuid:
-    :type uuid:
+def api_test_generate(username, reponame, branch=None, creator=None, gravatar=None, sha=None, github=False):
+    """ Generate a test on the machine
+
+    :param username: Name of the user
+    :type username: str
+    :param repository: Name of the repository
+    :type repository: str
+    :param branch: branch to be tested
+    :type branch: str
+
+    .:warning:. DISABLED
     """
-    print(uuid)
-    shutil.rmtree(TEST_PATH + "/" + str(uuid))
+    # Need to ensure the repository exists
+    
+    if github is not True:
+        repository = models.user.Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame, authors__in=[g.user])
+    else:
+        repository = models.user.Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
+
+    # Fill data when required
+    if branch is None and hasattr(g, "user") and g.user is not None:
+        status = github_api.get(
+            "repos/{owner}/{name}/commits".format(owner=repository.owner, name=repository.name),
+            params = {"sha" : "master"}
+        )
+        if len(status) == 0:
+            return Response(
+                response=json.dumps({"error" : "No commits available"}),
+                headers={"Content-Type": "application/json"},
+                status="404"
+            )
+
+        sha = status[0]["sha"]
+        branch = "master"
+        creator = g.user.login
+        gravatar = "https://avatars.githubusercontent.com/{0}".format(creator)
+
+    # Check that no test are made on the same
+    running = models.logs.RepoTest.objects(username__iexact=username, reponame__iexact=reponame, sha=sha, branch=branch, status=None)
+    if len(running) > 0:
+        return Response(
+            response=json.dumps({"error" : "Test already running on this branch"}),
+            headers={"Content-Type": "application/json"},
+            status="404"
+        )
+    elif not models.logs.RepoTest.is_ok(username=username, reponame=reponame, branch=branch):
+        return Response(
+            response=json.dumps({"error" : "This branch is not taken into account by our configuration"}),
+            headers={"Content-Type": "application/json"},
+            status="404"
+        )
+
+    uuid, slug = launch(repository.owner, repository.name, branch, creator, gravatar, sha)
+
+    return jsonify(
+        uuid=uuid,
+        owner=repository.owner,
+        name=repository.name,
+        branch=branch,
+        status="/api/rest/v1.0/code/{0}/{1}/{2}/test/{3}".format(repository.owner, repository.name, slug, uuid)
+    )

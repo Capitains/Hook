@@ -56,6 +56,20 @@ def repo_badge_status(username, reponame, branch=None, uuid=None):
 
     return response
 
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/cts/<uuid>.svg')
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/cts/<uuid>.svg', defaults = {"branch" : None})
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/cts.svg', defaults = {"uuid" : None})
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/cts.svg', defaults = {"uuid" : None, "branch" : None})
+def repo_cts_status(username, reponame, branch=None, uuid=None):
+    """ Get a Badge for a repo """
+    repo = get_repo(username=username, reponame=reponame, branch_slug=branch, uuid=uuid)
+    cts, total = repo.ctsized()
+    template = render_template("svg/cts.xml", cts=cts, total=total)
+    response = make_response(template)
+    response.content_type = 'image/svg+xml'
+
+    return response
+
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/coverage/<uuid>.svg')
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/coverage/<uuid>.svg', defaults = {"branch" : None})
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/coverage.svg', defaults = {"uuid" : None})
@@ -73,13 +87,13 @@ def repo_badge_coverage(username, reponame, branch=None, uuid=None):
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/document/<path>/status/<uuid>.svg')
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/document/<path>/status.svg', defaults = {"uuid" : None})
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/document/<path>/status.svg', defaults = {"uuid" : None, "branch" : None})
-def doc_badge_status(username, reponame, path, branch=None, uuid=None):
+def doc_badge_status(username, reponame, path, branch="master", uuid=None):
     """ Get a Badge for a repo """
     repo = get_repo(username=username, reponame=reponame, branch_slug=branch, uuid=uuid)
 
     parts = path.split(".")
     path = "/".join([username, reponame, "data", parts[0], parts[1], path])
-    doc = repo.units.get(path=path)
+    doc = repo.units.get(path__iexact=path)
 
     template = render_template(build_template(doc))
     response = make_response(template)
@@ -90,13 +104,30 @@ def doc_badge_status(username, reponame, path, branch=None, uuid=None):
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/document/<path>/coverage/<uuid>.svg')
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/document/<path>/coverage.svg', defaults = {"uuid" : None})
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/document/<path>/coverage.svg', defaults = {"uuid" : None, "branch" : None})
-def doc_badge_coverage(username, reponame, path, branch=None, uuid=None):
+def doc_badge_coverage(username, reponame, path, branch="master", uuid=None):
     """ Get a Badge for a repo """
     repo = get_repo(username=username, reponame=reponame, branch_slug=branch, uuid=uuid)
 
     parts = path.split(".")
     path = "/".join([username, reponame, "data", parts[0], parts[1], path])
-    doc = repo.units.get(path=path)
+    doc = repo.units.get(path__iexact=path)
+
+    template = render_template(coverage_template(doc), score=rnd(doc))
+    response = make_response(template)
+    response.content_type = 'image/svg+xml'
+
+    return response
+
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/document/<path>/schema/<uuid>.svg')
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/<branch>/badge/document/<path>/schema.svg', defaults = {"uuid" : None})
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/badge/document/<path>/schema.svg', defaults = {"uuid" : None, "branch" : None})
+def doc_badge_schema(username, reponame, path, branch="master", uuid=None):
+    """ Get a Badge for a repo """
+    repo = get_repo(username=username, reponame=reponame, branch_slug=branch, uuid=uuid)
+
+    parts = path.split(".")
+    path = "/".join([username, reponame, "data", parts[0], parts[1], path])
+    doc = repo.units.get(path__iexact=path)
 
     template = render_template(coverage_template(doc), score=rnd(doc))
     response = make_response(template)
