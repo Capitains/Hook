@@ -1,6 +1,7 @@
 from lxml import etree
 import MyCapytain.resources.texts.local
 import MyCapytain.resources.inventory
+import MyCapytain.common.reference
 import os
 
 import jingtrang
@@ -13,6 +14,7 @@ EPIDOC = os.path.join(curr_dir, "../data/external/tei-epidoc.rng")
 TEI_ALL = os.path.join(curr_dir, "../data/external/tei_all.rng")
 JING = pkg_resources.resource_filename("jingtrang", "jing.jar")
 
+ns = {"tei" : "http://www.tei-c.org/ns/1.0", "ti":"http://chs.harvard.edu/xmlns/cts"}
 class TESTUnit(object):
     def __init__(self, path):
         self.path = path
@@ -65,11 +67,12 @@ class INVUnit(TESTUnit):
     :type path: basestring
     """
 
-    tests = ["parsable", "capitain", "metadata"]
+    tests = ["parsable", "capitain", "metadata", "check_urns"]
     readable = {
         "parsable" : "File parsing",
         "capitain" : "MyCapytain parsing",
-        "metadata" : "Metadata availability"
+        "metadata" : "Metadata availability",
+        "check_urns" : "URNs testing"
     }
 
     def capitain(self):
@@ -127,6 +130,43 @@ class INVUnit(TESTUnit):
             status = status and labels == descs
 
             yield status
+        else:
+            yield False
+
+    def check_urns(self):
+        if self.type == "textgroup":
+            urns = [
+                urn
+                for urn in self.xml.xpath("//ti:textgroup/@urn", namespaces=ns)
+                if len(MyCapytain.common.reference.URN(urn)) == 3
+            ]
+            self.log("Group urn :" + "".join(self.xml.xpath("//ti:textgroup/@urn", namespaces=ns)))
+            yield len(urns) == 1
+        elif self.type == "work":
+            worksUrns = [
+                    urn
+                    for urn in self.xml.xpath("//ti:work/@urn", namespaces=ns)
+                    if len(MyCapytain.common.reference.URN(urn)) == 4
+                ] + [
+                    urn
+                    for urn in self.xml.xpath("//ti:work/@groupUrn", namespaces=ns)
+                    if len(MyCapytain.common.reference.URN(urn)) == 3
+                ]
+            self.log("Group urn : " + "".join(self.xml.xpath("//ti:work/@groupUrn", namespaces=ns)))
+            self.log("Work urn : " + "".join(self.xml.xpath("//ti:work/@urn", namespaces=ns)))
+
+            texts = self.xml.xpath("//ti:edition|//ti:translation", namespaces=ns)
+            workUrnsText = []
+
+            for text in texts:
+                self.urns.append(text.get("urn"))
+                workUrnsText.append(text.get("workUrn"))
+
+            workUrnsText = [urn for urn in workUrnsText if len(MyCapytain.common.reference.URN(urn)) == 4]
+            self.urns = [urn for urn in self.urns if len(MyCapytain.common.reference.URN(urn)) == 5]
+            self.log("Editions and translations urns : " + " ".join(self.urns))
+            
+            yield len(worksUrns) == 2 and (len(texts)*2)==len(self.urns + workUrnsText)
         else:
             yield False
 
@@ -225,7 +265,6 @@ class CTSUnit(TESTUnit):
     def has_urn(self):
         """ Test that a file has its urn saved
         """
-        ns = {"tei" : "http://www.tei-c.org/ns/1.0"}
         urns = self.xml.xpath("//tei:text[starts-with(@n, 'urn:cts:')]", namespaces=ns)
         urns += self.xml.xpath("//tei:div[starts-with(@n, 'urn:cts:')]", namespaces=ns)
         status = len(urns) > 0
