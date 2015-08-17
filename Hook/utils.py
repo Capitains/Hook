@@ -11,7 +11,7 @@ class Progress(git.RemoteProgress):
         self.start  = ["Cloning repository"]
         self.end  = []
         self.download = ""
-        self.__progress = None
+        self.progress = None
 
         self.current = 0
         self.maximum = 0
@@ -22,12 +22,12 @@ class Progress(git.RemoteProgress):
 
         if message:
             if message[-2:] == "/s":
-                if self.__progress is None:
-                    self.__progress = True
+                if self.progress is None:
+                    self.progress = True
                 self.download = message
             else:
-                if self.__progress:
-                    self.__progress = False
+                if self.progress:
+                    self.progress = False
                     self.end.append(message)
                 else:
                     self.start.append(message)

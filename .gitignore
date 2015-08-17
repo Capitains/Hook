@@ -1,3 +1,5 @@
 env
 __pycache__
 config.yaml
+Hook.egg-info
+.eggs
