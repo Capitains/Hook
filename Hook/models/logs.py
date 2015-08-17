@@ -114,11 +114,10 @@ class RepoTest(db.Document):
         """ Check that the test is accepted by config """
         repository = Repository.objects.get(owner__iexact=username, name__iexact=reponame)
         if repository.master_pr and \
-           branch is not None and \
-           isinstance(branch, str) and \
-           branch != "master" and \
-           pr_finder.match(branch) is None:
-
+          branch is not None and \
+          isinstance(branch, str) and \
+          "master" not in branch and \
+          pr_finder.match(branch) is None:
             return False
 
         return True
