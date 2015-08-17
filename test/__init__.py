@@ -96,72 +96,92 @@ def do_test(f, tei, epidoc, verbose, inventory=None):
 
     return logs + ["test+=1"], inventory
 
-"""
-    Initialization and parameters recovering
-"""
-# Takes 4 parameters : uuid, repo, branch, dest
-script, opts, uuid, reponame, branch, dest = tuple(argv)
-errors = False
-directory = "/".join([dest, uuid])
+def run(opts, uuid, reponame, branch, dest):
+    """ Run the tests
 
-if len(opts) > 1:
-    opts = list(opts[1:])
-else:   
-    opts = list()
+    :param opts: Options (-vte)
+    :type opts: str
+    :param uuid: Identifier of the test
+    :type uuid: str
+    :param reponame: Name of the Git Repository
+    :type reponame: str
+    :param branch: Identifier of the branch
+    :type branch: str
+    :param dest: Folder containing the repository
+    :type dest: str
 
-verbose = "v" in opts
-tei = "t" in opts
-epidoc = "e" in opts
-""" 
-    Results storing variables initialization
-"""
+    :returns: Boolean indicating success
+    :rtype: boolean
+    """
+    ###
+    ###    Initialization and parameters recovering
+    ###
+    script, opts, uuid, reponame, branch, dest = tuple(argv)
+    errors = False
+    directory = "/".join([dest, uuid])
 
-# Store the results
-results = defaultdict(dict)
-passing = defaultdict(dict)
+    if len(opts) > 1:
+        opts = list(opts[1:])
+    else:   
+        opts = list()
 
-files, cts__ = repo.find_files(directory)
+    verbose = "v" in opts
+    tei = "t" in opts
+    epidoc = "e" in opts
 
-prnt(">>> Starting tests !")
-prnt("files="+str(len(files) + len(cts__)))
+    """ 
+        Results storing variables initialization
+    """
 
-# We load a thread pool which has 5 maximum workers
-with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-    # We create a dictionary of tasks which 
-    tasks = {executor.submit(do_test, target_file, tei, epidoc, verbose, inv): target_file for target_file in cts__}
-    # We iterate over a dictionary of completed tasks
-    for future in concurrent.futures.as_completed(tasks):
-        logs, inv = future.result()
-        for log in logs:
-            prnt(log)
+    # Store the results
+    results = defaultdict(dict)
+    passing = defaultdict(dict)
 
-# We load a thread pool which has 5 maximum workers
-with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-    # We create a dictionary of tasks which 
-    tasks = {executor.submit(do_test, target_file, tei, epidoc, verbose, inv): target_file for target_file in files}
-    # We iterate over a dictionary of completed tasks
-    for future in concurrent.futures.as_completed(tasks):
-        logs, inv = future.result()
-        for log in logs:
-            prnt(log)
+    files, cts__ = repo.find_files(directory)
 
-prnt(">>> Finished tests !")
+    prnt(">>> Starting tests !")
+    prnt("files="+str(len(files) + len(cts__)))
 
-success = len([True for status in passing.values() if status is True])
-if success == len(passing):
-    status_string = "success"
-else:
-    status_string = "failure"
-prnt("[{2}] {0} over {1} texts have fully passed the tests".format(success, len(passing), status_string))
+    # We load a thread pool which has 5 maximum workers
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        # We create a dictionary of tasks which 
+        tasks = {executor.submit(do_test, target_file, tei, epidoc, verbose, inv): target_file for target_file in cts__}
+        # We iterate over a dictionary of completed tasks
+        for future in concurrent.futures.as_completed(tasks):
+            logs, inv = future.result()
+            for log in logs:
+                prnt(log)
 
-prnt("====JSON====")
-prnt(json.dumps({
-    "status" : success == len(passing),
-    "units" : results,
-    "coverage" : statistics.mean([test["coverage"] for test in results.values()])
-}))
+    # We load a thread pool which has 5 maximum workers
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        # We create a dictionary of tasks which 
+        tasks = {executor.submit(do_test, target_file, tei, epidoc, verbose, inv): target_file for target_file in files}
+        # We iterate over a dictionary of completed tasks
+        for future in concurrent.futures.as_completed(tasks):
+            logs, inv = future.result()
+            for log in logs:
+                prnt(log)
 
-if success != len(passing):
-    exit(1)
-else:
-    exit(0)
+    prnt(">>> Finished tests !")
+
+    success = len([True for status in passing.values() if status is True])
+    if success == len(passing):
+        status_string = "success"
+    else:
+        status_string = "failure"
+    prnt("[{2}] {0} over {1} texts have fully passed the tests".format(success, len(passing), status_string))
+
+    prnt("====JSON====")
+    prnt(json.dumps({
+        "status" : success == len(passing),
+        "units" : results,
+        "coverage" : statistics.mean([test["coverage"] for test in results.values()])
+    }))
+
+    return success == len(passing)
+
+if __name__ == '__main__':
+    if run(*argv[1:]) is False:
+        exit(1)
+    else:
+        exit(0)
