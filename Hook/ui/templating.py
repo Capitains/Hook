@@ -1,6 +1,6 @@
-from app import app
+from Hook.app import app
 from flask import Markup
-from utils import slugify
+from Hook.utils import slugify
 
 @app.template_filter('slugify')
 def _slugify(string):

@@ -1,7 +1,9 @@
-from flask import jsonify, g, request, Response
-from app import app
-from flask.ext.login import login_required
 import json
+
+from flask import jsonify, g, request, Response
+from flask.ext.login import login_required
+
+from Hook.app import app
 
 @app.route("/api/rest/v1.0/user/repositories", methods=["GET", "POST"])
 @login_required

@@ -1,9 +1,10 @@
-#from flask import 
-from app import app
-from models.logs import *
+import math 
 
 from flask import make_response, render_template
-import math 
+
+from Hook.app import app
+from Hook.models.logs import *
+
 
 def rnd(score):
     if score and score.coverage:

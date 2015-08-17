@@ -1,7 +1,8 @@
 from flask import session, url_for, redirect, g
-from app import app, github_api, login_manager
 from flask.ext.github import GitHub
-from models.user import User
+
+from Hook.app import app, github_api, login_manager
+from Hook.models.user import User
 
 
 @app.route('/login/form')

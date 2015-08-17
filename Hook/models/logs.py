@@ -1,11 +1,11 @@
 import datetime
-from utils import slugify
+import re
 from flask import url_for, g
 
 
-from app import db, github_api, app
-from models.user import *
-import re
+from Hook.app import db, github_api, app
+from Hook.utils import slugify
+from Hook.models.user import *
 
 pr_finder = re.compile("PR #([0-9]+)")
 

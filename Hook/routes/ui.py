@@ -1,8 +1,8 @@
 from flask import render_template, request, jsonify
-from models.logs import *
-from models.user import Repository
 
-from app import app
+from Hook.app import app
+from Hook.models.logs import *
+from Hook.models.user import Repository
 
 @app.route('/')
 def index():

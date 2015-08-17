@@ -8,20 +8,20 @@ import subprocess
 # Test related informations
 from uuid import uuid4
 import git
-from utils import Progress
 import shutil
 
 # General use libraries
 import json
 import re
 
-# Database imports
-from models.logs import *
-
-from app import app, github_api
+# Flask imports
 from flask import g, jsonify, Response
-import models.user
-import models.logs
+
+# Database imports
+from Hook.utils import Progress
+from Hook.app import app, github_api
+import Hook.models.user
+import Hook.models.logs
 
 """
     Dictionaries for status checking
@@ -84,7 +84,7 @@ def test(uuid, repository, branch, db_obj):
     :param branch: branch to be tested
     :type branch: str
     :param db_obj: Repo instance of the database
-    :type db_obj: models.logs.RepoTest
+    :type db_obj: Hook.models.logs.RepoTest
 
     """
     target = TEST_PATH + "/" + str(uuid)
@@ -119,7 +119,7 @@ def test(uuid, repository, branch, db_obj):
     background_logs[uuid] = []
 
     background_proc[uuid] = subprocess.Popen(
-        ["/usr/bin/python3", SCRIPT_PATH + "__init__.py", "-"+"".join(db_obj.config_to()), uuid, repository, branch, TEST_PATH],
+        ["/usr/bin/python3", SCRIPT_PATH + "test.py", "-"+"".join(db_obj.config_to()), uuid, repository, branch, TEST_PATH],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         shell=False
@@ -256,7 +256,7 @@ def update(report, logs, username, reponame, branch, uuid, nb_files=1, tested=0)
     :type tested: int
 
     """
-    repo_test = RepoTest.Get_or_Create(
+    repo_test = Hook.models.logs.RepoTest.Get_or_Create(
         uuid=uuid,
         username=username,
         reponame=reponame,
@@ -269,7 +269,7 @@ def update(report, logs, username, reponame, branch, uuid, nb_files=1, tested=0)
 
     # Save the full logs
     for line in logs:
-        repo_test.logs.append(RepoLogs(text=line))
+        repo_test.logs.append(Hook.models.logs.RepoLogs(text=line))
 
     if report is not None:
 
@@ -278,14 +278,14 @@ def update(report, logs, username, reponame, branch, uuid, nb_files=1, tested=0)
         repo_test.coverage=report["coverage"]
 
         for document_name, document_test in report["units"].items():
-            document_mongo = DocTest(
+            document_mongo = Hook.models.logs.DocTest(
                 path=document_name,
                 status=document_test["status"],
                 coverage=document_test["coverage"]
             )
 
             for test_name, test_status in document_test["units"].items():
-                document_mongo.logs.append(DocLogs(
+                document_mongo.logs.append(Hook.models.logs.DocLogs(
                     title=test_name,
                     status=test_status
                 ))
@@ -317,7 +317,7 @@ def launch(username, reponame, ref, creator, gravatar, sha):
     uuid = str(uuid4())
     background_status[uuid] = False
 
-    repo = RepoTest.Get_or_Create(uuid, username, reponame, ref)
+    repo = Hook.models.logs.RepoTest.Get_or_Create(uuid, username, reponame, ref)
     repo.user = creator
     repo.gravatar = gravatar
     repo.sha = sha
@@ -345,9 +345,9 @@ def api_test_generate(username, reponame, branch=None, creator=None, gravatar=No
     # Need to ensure the repository exists
     
     if github is not True:
-        repository = models.user.Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame, authors__in=[g.user])
+        repository = Hook.models.user.Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame, authors__in=[g.user])
     else:
-        repository = models.user.Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
+        repository = Hook.models.user.Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
 
     # Fill data when required
     if branch is None and hasattr(g, "user") and g.user is not None:
@@ -368,14 +368,14 @@ def api_test_generate(username, reponame, branch=None, creator=None, gravatar=No
         gravatar = "https://avatars.githubusercontent.com/{0}".format(creator)
 
     # Check that no test are made on the same
-    running = models.logs.RepoTest.objects(username__iexact=username, reponame__iexact=reponame, sha=sha, branch=branch, status=None)
+    running = Hook.models.logs.RepoTest.objects(username__iexact=username, reponame__iexact=reponame, sha=sha, branch=branch, status=None)
     if len(running) > 0:
         return Response(
             response=json.dumps({"error" : "Test already running on this branch"}),
             headers={"Content-Type": "application/json"},
             status="404"
         )
-    elif not models.logs.RepoTest.is_ok(username=username, reponame=reponame, branch=branch):
+    elif not Hook.models.logs.RepoTest.is_ok(username=username, reponame=reponame, branch=branch):
         return Response(
             response=json.dumps({"error" : "This branch is not taken into account by our configuration"}),
             headers={"Content-Type": "application/json"},

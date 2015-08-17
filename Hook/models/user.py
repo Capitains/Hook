@@ -1,6 +1,9 @@
-from app import db, github_api, app
-from flask import session, g, url_for
 import datetime
+
+from flask import session, g, url_for
+
+from Hook.app import db, github_api, app
+
 
 class User(db.Document):
     """ User informations """

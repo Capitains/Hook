@@ -1,10 +1,10 @@
-from app import app, github_api
-
 from uuid import uuid4
 from flask import jsonify, request, redirect, session, url_for, g
-from models.user import User
-import routes.api.test 
-import controllers.test
+
+from Hook.app import app, github_api
+from Hook.models.user import User
+import Hook.routes.api.test 
+import Hook.controllers.test
 
 @app.route("/api/github/payload", methods=['POST'])
 def api_test_payload():
@@ -25,12 +25,12 @@ def api_test_payload():
         creator = payload["head_commit"]["committer"]["username"]
         gravatar = "https://avatars.githubusercontent.com/{0}".format(creator)
         sha = payload["head_commit"]["id"]
-        return controllers.test.api_test_generate(username, reponame, payload["ref"], creator, gravatar, sha, github=True)
+        return Hook.controllers.test.api_test_generate(username, reponame, payload["ref"], creator, gravatar, sha, github=True)
     elif event == "pull_request" and payload["action"] in ["reopened", "opened"]:
         creator = payload["pull_request"]["user"]["login"]
         gravatar = "https://avatars.githubusercontent.com/{0}".format(creator)
         sha = payload["pull_request"]["head"]["sha"]
-        return controllers.test.api_test_generate(username, reponame, payload["number"], creator, gravatar, sha, github=True)
+        return Hook.controllers.test.api_test_generate(username, reponame, payload["number"], creator, gravatar, sha, github=True)
 
     return jsonify(
         headers=informations,

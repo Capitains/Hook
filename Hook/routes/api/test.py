@@ -1,11 +1,12 @@
+import json
+
 from flask import abort, jsonify, request, g, Response
-from app import app, github_api
 from flask.ext.login import login_required
 
-import controllers.test
-import models.logs
-import models.user
-import json
+from Hook.app import app, github_api
+import Hook.controllers.test
+import Hook.models.logs
+import Hook.models.user
 
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/test', defaults= { "branch" : None})
 @login_required
@@ -21,20 +22,20 @@ def api_test_generate_route(username, reponame, branch=None, creator=None, grava
 
     .:warning:. DISABLED
     """
-    return controllers.test.api_test_generate(username, reponame, branch, creator, gravatar, sha)
+    return Hook.controllers.test.api_test_generate(username, reponame, branch, creator, gravatar, sha)
 
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<slug>/test/<uuid>', methods=["GET", "DELETE"])
 def api_test_status(username, reponame, slug, uuid):
     """ Show status of a test
     """
     if request.method == "DELETE":
-        test = models.logs.RepoTest.objects.get_or_404(username__iexact=username, reponame__iexact=reponame, branch_slug__iexact=slug, uuid=uuid)
-        controllers.test.remove(test.uuid)
+        test = Hook.models.logs.RepoTest.objects.get_or_404(username__iexact=username, reponame__iexact=reponame, branch_slug__iexact=slug, uuid=uuid)
+        Hook.controllers.test.remove(test.uuid)
         test.update(status=False, total=0, tested=0)
         test.git_status(True)
         return jsonify(cancelled=True)
 
-    answer = models.logs.RepoTest.report(username, reponame, slug=slug, uuid=uuid)
+    answer = Hook.models.logs.RepoTest.report(username, reponame, slug=slug, uuid=uuid)
     line = request.args.get("from")
     if line:
         line = int(line)
@@ -60,7 +61,7 @@ def api_repo_history(username, reponame):
                 "ref" : event.branch,
                 "slug" : event.branch_slug
             }
-            for event in models.logs.RepoTest.objects(username__iexact=username, reponame__iexact=reponame)
+            for event in Hook.models.logs.RepoTest.objects(username__iexact=username, reponame__iexact=reponame)
         ]
     }
     return jsonify(history)
