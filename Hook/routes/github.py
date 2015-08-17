@@ -26,7 +26,7 @@ def api_test_payload():
         gravatar = "https://avatars.githubusercontent.com/{0}".format(creator)
         sha = payload["head_commit"]["id"]
         return Hook.controllers.test.api_test_generate(username, reponame, payload["ref"], creator, gravatar, sha, github=True)
-    elif event == "pull_request" and payload["action"] in ["reopened", "opened"]:
+    elif event == "pull_request" and payload["action"] in ["reopened", "opened", "synchronize"]:
         creator = payload["pull_request"]["user"]["login"]
         gravatar = "https://avatars.githubusercontent.com/{0}".format(creator)
         sha = payload["pull_request"]["head"]["sha"]
