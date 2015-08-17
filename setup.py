@@ -11,10 +11,14 @@ setup(
   license='MIT',
   packages=find_packages(),
   install_requires=[
-    "requests==2.7.0",
-    "six==1.9.0",
-    "lxml==3.4.4",
-    "future==0.14.3"
+    "Flask==0.10.1",
+    "flask-mongoengine==0.7.1",
+    "flask-login==0.2.11",
+    "GitHub-Flask==2.1.1",
+    "GitPython==1.0.1",
+    "MyCapytain==0.0.3",
+    "unicode-slugify==0.1.3",
+    "https://github.com/pferreir/flask-environments/tarball/fix-python3"
   ],
   test_suite="tests",
   zip_safe=False

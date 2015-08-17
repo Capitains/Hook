@@ -34,7 +34,7 @@ background_inf = {}
 background_timer = {}
 background_main = {}
 
-SCRIPT_PATH = "/home/thibault/dev/capitains/Hook/test/"
+SCRIPT_PATH = "/home/thibault/dev/capitains/Hook/HookTest/"
 TEST_PATH = "/home/thibault/hooks"
 
 int_finder = re.compile("([0-9]+)")
