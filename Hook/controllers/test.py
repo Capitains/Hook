@@ -34,8 +34,8 @@ background_inf = {}
 background_timer = {}
 background_main = {}
 
-SCRIPT_PATH = "/home/thibault/dev/capitains/Hook/HookTest/"
-TEST_PATH = "/home/thibault/hooks"
+SCRIPT_PATH = app.config["SCRIPT_PATH"]
+TEST_PATH = app.config["TEST_PATH"]
 
 int_finder = re.compile("([0-9]+)")
 pr_finder = re.compile("PR #([0-9]+)")
