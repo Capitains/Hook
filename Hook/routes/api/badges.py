@@ -64,8 +64,11 @@ def repo_badge_status(username, reponame, branch=None, uuid=None):
 def repo_cts_status(username, reponame, branch=None, uuid=None):
     """ Get a Badge for a repo """
     repo = get_repo(username=username, reponame=reponame, branch_slug=branch, uuid=uuid)
-    cts, total = repo.ctsized()
-    template = render_template("svg/cts.xml", cts=cts, total=total)
+    try:
+        cts, total = repo.ctsized()
+        template = render_template("svg/cts.xml", cts=cts, total=total)
+    except:
+        template = render_template("svg/cts.unknown.xml")
     response = make_response(template)
     response.content_type = 'image/svg+xml'
 
