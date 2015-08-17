@@ -1,23 +1,21 @@
 import os
 
 from flask import Flask
-from flask.ext.mongoengine import MongoEngine 
-from flask.ext.github import GitHub
-from flask.ext.login import LoginManager
-from flask_environments import Environments
 
 app = Flask(
     __name__,
     template_folder="../data/templates",
     static_folder="../data/static"
 )
-env = Environments(app)
-env.from_yaml(os.path.join(os.getcwd(), 'config.yaml'))
 
+# Extension setting
+from Hook.extensions import *
 
-db = MongoEngine(app)
-github_api = GitHub(app)
-login_manager = LoginManager(app)
+write_env(conf, app)
+
+db.init_app(app)
+github_api.init_app(app)
+login_manager.init_app(app)
 
 from Hook.routes import ui
 from Hook.routes import github

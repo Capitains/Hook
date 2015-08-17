@@ -2,8 +2,8 @@ import datetime
 
 from flask import session, g, url_for
 
-from Hook.app import db, github_api, app
-
+from Hook.extensions import db, github_api
+from Hook.app import app
 
 class User(db.Document):
     """ User informations """
@@ -19,7 +19,7 @@ class User(db.Document):
 
     def is_authenticated(self):
         """ Check that the user is authenticated """
-        return self == g.user
+        return hasattr(g, "user") and self == g.user
 
     def is_anonymous(self):
         return False
@@ -36,7 +36,7 @@ class User(db.Document):
         :returns: Indicator for cleaning and for update
         :rtype: Boolean, Boolean
         """
-        if g.user == self:
+        if hasattr(g, "user") and g.user == self:
             # We clear the old authors
             clean = self.clean()
 
@@ -59,7 +59,7 @@ class User(db.Document):
 
     def clean(self):
         """ Remove list of repositories """
-        if g.user == self:
+        if hasattr(g, "user") and g.user == self:
             for repo in self.repositories:
                 repo.update(pull__authors=self)
             return True
