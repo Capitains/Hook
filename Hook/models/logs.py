@@ -203,7 +203,7 @@ class RepoTest(db.Document):
 
             data = {
               "state": state,
-              "target_url": app.config["DOMAIN"]+"/repo/{username}/{reponame}/{uuid}".format(username=self.username, reponame=self.reponame, uuid=self.uuid),
+              "target_url": "/".join([s for s in [app.config["SERVER_NAME"], app.config["APPLICATION_ROOT"]]]) + "/repo/{username}/{reponame}/{uuid}".format(username=self.username, reponame=self.reponame, uuid=self.uuid),
               "description": sentence,
               "context": "continuous-integration/capitains-hook"
             }
