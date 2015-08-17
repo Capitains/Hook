@@ -71,7 +71,7 @@ def do_test(f, tei, epidoc, verbose, inventory=None):
             results[f][name] = status
 
         results[f] = cover(results[f])
-        passing[f.split("/")[-1]] = True == results[f]["status"]
+        passing[f.replace("/", ".")] = True == results[f]["status"]
         inventory += t.urns
 
     else:
