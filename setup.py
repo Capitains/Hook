@@ -18,8 +18,9 @@ setup(
     "GitPython==1.0.1",
     "MyCapytain==0.0.3",
     "unicode-slugify==0.1.3",
-    "https://github.com/pferreir/flask-environments/tarball/fix-python3"
+    "Flask-Environments==0.1"
   ],
   test_suite="tests",
-  zip_safe=False
+  zip_safe=False,
+  dependency_links = ['http://github.com/pferreir/flask-environments/tarball/fix-python3#egg=Flask-Environments-0.1']
 )
