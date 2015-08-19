@@ -1,16 +1,18 @@
-from flask import render_template, request, jsonify
+from flask import render_template, request
 
 from Hook.app import app
-from Hook.models.logs import *
-from Hook.models.user import Repository
+from Hook.models.github import Repository, RepoTest
+
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
+
 @app.route('/login')
 def login_ui():
     return render_template('login.html')
+
 
 @app.route('/repo/<username>/<reponame>', methods=["GET", "POST"])
 def repo(username, reponame):

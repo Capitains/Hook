@@ -1,9 +1,9 @@
-import math 
+import math
 
 from flask import make_response, render_template
 
 from Hook.app import app
-from Hook.models.logs import *
+from Hook.models.github import RepoTest
 
 
 def rnd(score):

@@ -5,10 +5,11 @@ from flask.ext.login import login_required
 
 from Hook.app import app, github_api
 import Hook.controllers.test
-import Hook.models.logs
+import Hook.models.github
 import Hook.models.user
 
-@app.route('/api/rest/v1.0/code/<username>/<reponame>/test', defaults= { "branch" : None})
+
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/test', defaults={"branch": None})
 @login_required
 def api_test_generate_route(username, reponame, branch=None, creator=None, gravatar=None, sha=None):
     """ Generate a test on the machine
@@ -29,13 +30,13 @@ def api_test_status(username, reponame, slug, uuid):
     """ Show status of a test
     """
     if request.method == "DELETE":
-        test = Hook.models.logs.RepoTest.objects.get_or_404(username__iexact=username, reponame__iexact=reponame, branch_slug__iexact=slug, uuid=uuid)
+        test = Hook.models.github.RepoTest.objects.get_or_404(username__iexact=username, reponame__iexact=reponame, branch_slug__iexact=slug, uuid=uuid)
         Hook.controllers.test.remove(test.uuid)
         test.update(status=False, total=0, tested=0)
         test.git_status(True)
         return jsonify(cancelled=True)
 
-    answer = Hook.models.logs.RepoTest.report(username, reponame, slug=slug, uuid=uuid)
+    answer = Hook.models.github.RepoTest.report(username, reponame, slug=slug, uuid=uuid)
     line = request.args.get("from")
     if line:
         line = int(line)
@@ -61,7 +62,7 @@ def api_repo_history(username, reponame):
                 "ref" : event.branch,
                 "slug" : event.branch_slug
             }
-            for event in Hook.models.logs.RepoTest.objects(username__iexact=username, reponame__iexact=reponame)
+            for event in Hook.models.github.RepoTest.objects(username__iexact=username, reponame__iexact=reponame)
         ]
     }
     return jsonify(history)

@@ -15,8 +15,6 @@ setup(
     "flask-mongoengine==0.7.1",
     "flask-login==0.2.11",
     "GitHub-Flask==2.1.1",
-    "GitPython==1.0.1",
-    "MyCapytain==0.0.3",
     "unicode-slugify==0.1.3",
     "PyYAML==3.11"
   ],
