@@ -1,6 +1,5 @@
-import os
-
-from flask import Flask
+from flask import Flask, g, session
+from Hook.controller import UserCtrl, TestCtrl
 
 app = Flask(
     __name__,
@@ -17,10 +16,35 @@ db.init_app(app)
 github_api.init_app(app)
 login_manager.init_app(app)
 
-from Hook.routes import ui
-from Hook.routes import github
-from Hook.routes import user
-from Hook.routes.api import user as users
-from Hook.routes.api import badges
-from Hook.routes.api import test
-import Hook.ui.templating
+
+userctrl = UserCtrl(api=github_api, db=db, g=g, session=session)
+testctrl = TestCtrl(api=github_api, db=db, g=g, session=session, signature=app.config["GITHUB_HOOK_SECRET"])
+
+
+@app.before_request
+def before_request():
+    userctrl.before_request()
+    testctrl.before_request()
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    """ Load a user
+
+    :param userid: User id
+    :return:
+    """
+    if hasattr(g, "user"):
+        return g.user
+    return None
+
+
+@github_api.access_token_getter
+def token_getter():
+    if hasattr(g, "user"):
+        user = g.user
+        if user is not None:
+            return user.github_access_token
+
+
+import Hook.routes

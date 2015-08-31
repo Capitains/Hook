@@ -6,7 +6,6 @@ from Hook.utils import slugify
 
 import Hook.extensions
 import Hook.models.user
-import Hook.controllers.github
 
 __author__ = 'Thibault Clerice'
 
@@ -52,7 +51,7 @@ class Repository(db.Document):
         self.updated = True
 
     @staticmethod
-    def switch(owner, name, user, callback=Hook.controllers.github.hook):
+    def switch(owner, name, user, callback=lambda x: True):
         """ Switch a given repository for automatic PR/Push builds
 
         :param owner: Name of the repository's owner
@@ -110,7 +109,7 @@ class RepoTest(db.Document):
     total = db.IntField(default=1)
     tested = db.IntField(default=0)
     config = db.ListField(db.StringField())
-    repository = db.ReferenceField(Repository())
+    repository = db.ReferenceField(Repository)
 
     user = db.StringField(default="")
     gravatar = db.StringField(default="")

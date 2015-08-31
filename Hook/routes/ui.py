@@ -9,11 +9,6 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/login')
-def login_ui():
-    return render_template('login.html')
-
-
 @app.route('/repo/<username>/<reponame>', methods=["GET", "POST"])
 def repo(username, reponame):
     repository = Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)

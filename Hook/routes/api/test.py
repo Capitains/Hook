@@ -4,7 +4,7 @@ from flask import abort, jsonify, request, g, Response
 from flask.ext.login import login_required
 
 from Hook.app import app, github_api
-import Hook.controllers.test
+import Hook.controllers.test_old
 import Hook.models.github
 import Hook.models.user
 
@@ -23,7 +23,7 @@ def api_test_generate_route(username, reponame, branch=None, creator=None, grava
 
     .:warning:. DISABLED
     """
-    return Hook.controllers.test.api_test_generate(username, reponame, branch, creator, gravatar, sha)
+    return Hook.controllers.test_old.api_test_generate(username, reponame, branch, creator, gravatar, sha)
 
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<slug>/test/<uuid>', methods=["GET", "DELETE"])
 def api_test_status(username, reponame, slug, uuid):
@@ -31,7 +31,7 @@ def api_test_status(username, reponame, slug, uuid):
     """
     if request.method == "DELETE":
         test = Hook.models.github.RepoTest.objects.get_or_404(username__iexact=username, reponame__iexact=reponame, branch_slug__iexact=slug, uuid=uuid)
-        Hook.controllers.test.remove(test.uuid)
+        Hook.controllers.test_old.remove(test.uuid)
         test.update(status=False, total=0, tested=0)
         test.git_status(True)
         return jsonify(cancelled=True)

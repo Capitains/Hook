@@ -1,34 +1,22 @@
-from flask import session, url_for, redirect, g
-from flask.ext.github import GitHub
-
-from Hook.app import app, github_api, login_manager
-from Hook.models.user import User
+"""
+    Routes for user oriented functions
+"""
+from flask import url_for, request
+from Hook.app import app, userctrl
 
 
 @app.route('/login/form')
 def login():
-    if session.get('user_id', None) is None:
-        return github_api.authorize(scope=",".join(["user:email", "repo:status", "admin:repo_hook", "read:org"]))
-    else:
-        redirect(url_for("index"))
+    return userctrl.login(url_for("index"))
 
 
 @app.route('/logout')
 def logout():
-    session.pop('user_id', None)
-    return redirect(url_for('index'))
-
-@app.route('/user')
-def user():
-    return str(github_api.get('user'))
+    return userctrl.logout(url_for("index"))
 
 
-@app.before_request
-def before_request():
-    g.user = None
-    if 'user_id' in session:
-        g.user = User.objects.get(uuid=session['user_id'])
-
-@login_manager.user_loader
-def load_user(userid):
-    return g.user
+@app.route('/api/github/callback')
+@userctrl.api.authorized_handler
+def authorized(access_token):
+    next_uri = request.args.get('next') or url_for('index')
+    return userctrl.authorize(access_token, request, success=next_uri, error=url_for("index"))

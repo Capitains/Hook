@@ -2,7 +2,7 @@ import datetime
 
 from flask import g
 
-from Hook.app import db
+from Hook.extensions import db
 import Hook.models.github
 
 
@@ -51,8 +51,8 @@ class User(db.Document):
     def testable(self):
         return Hook.models.github.Repository.objects(authors__in=[self], tested=True)
 
-    def switch(self, owner, name):
-        return Hook.models.github.Repository.switch(owner, name, self)
+    def switch(self, owner, name, callback):
+        return Hook.models.github.Repository.switch(owner, name, self, callback)
     
     def repository(self, owner, name):
         return Hook.models.github.Repository.objects(authors__in=[self], owner__iexact=owner, name__iexact=name)
