@@ -1,6 +1,7 @@
 import math
 import hmac
 import hashlib
+import json
 from uuid import uuid4
 
 from flask import redirect, jsonify
@@ -8,7 +9,7 @@ from rq import Queue
 from redis import Redis
 
 from HookTest.test import cmd
-from Hook.models import User, Repository, RepoTest
+from Hook.models import User, Repository, RepoTest, DocLogs, DocTest, DocUnitStatus
 
 
 class Controller(object):
@@ -157,7 +158,6 @@ class TestCtrl(Controller):
         """
 
         start, end = 0, 20
-        print(owner, repository)
         repository = Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
 
         if request.method == "POST" and hasattr(self.g, "user") and self.g.user in repository.authors:
@@ -222,13 +222,14 @@ class TestCtrl(Controller):
 
         return ref, creator, sha, url, guid
 
-    def generate(self, username, reponame, ref=None, creator=None, sha=None, url=None, uuid=None):
+    def generate(self, username, reponame, callback_url=None, ref=None, creator=None, sha=None, url=None, uuid=None):
         """ Generate a test on the machine
 
         :param username: Name of the user
         :type username: str
         :param reponame: Name of the repository
         :type reponame: str
+        :param callback_url: URL to send log to
         :param ref: branch to be tested
         :type ref: str
         :param creator: Person responsible for starting the test
@@ -257,14 +258,15 @@ class TestCtrl(Controller):
             link=url
         )
 
-        self.dispatch(test)
+        self.dispatch(test, callback_url)
 
-        return "success", "Test launched", status
+        return jsonify(status="success", msg="Test launched")
 
-    def dispatch(self, test):
+    def dispatch(self, test, callback_url):
         """ Dispatch a test to the redis queue
 
         :param test: The test to be sent
+        :param callback_url: URL to send log to
         """
 
         redis_conn = Redis(self.redis)
@@ -273,18 +275,84 @@ class TestCtrl(Controller):
             func=cmd,
             kwargs={
                 "path": self.hooktest_path,
-                "repository": test.userrepo,
-                "ping": self.domain,
+                "repository": test.repository.full_name,
+                "ping": callback_url,
                 "verbose": test.verbose,
                 "console": False,
                 "uuid" : test.uuid,
                 "workers": self.workers,
                 "secret": self.hooktest_secret,
-                "scheme": test.dtd
+                "scheme": test.scheme
             },
             timeout=3600,
             result_ttl=86400
         )
+
+    def handle_hooktest_log(self, request):
+        """ Handle data received from Redis server commands
+
+        :param request: request object
+        :return: Status Code
+        """
+
+        if not request.data or not request.headers.get("HookTest-UUID"):
+            return 404
+        elif self.check_hooktest_signature(request.data, request.headers.get("HookTest-Secure-X")) is False:
+            return 401
+
+        # Now we get the repo
+        uuid = request.headers.get("HookTest-UUID")
+        test = RepoTest.objects.get_or_404(uuid=uuid)
+        data = json.loads(request.data.decode('utf-8'))
+
+        # If the test just started
+        if "files" in data and "inventories" in data and "texts" in data:
+            test.update(
+                texts=data["texts"],
+                cts_metadata=data["inventories"]
+            )
+        else:
+            # If we have units, we have single logs to save
+            if "units" in data:
+                for unit in data["units"]:
+                    unit_mongo = DocTest(
+                        at=unit["at"],
+                        path=unit["name"],
+                        status=unit["status"],
+                        coverage=unit["coverage"]
+                    )
+
+                    for text in unit["logs"]:
+                        unit_mongo.text_logs.append(DocLogs(text=text))
+
+                    for test_name, test_status in unit["units"].items():
+                        unit_mongo.logs.append(DocUnitStatus(
+                            title=test_name,
+                            status=test_status
+                        ))
+
+                    test.units.append(unit_mongo)
+            if "coverage" in data:
+                test.coverage = data["coverage"]
+                test.status = data["status"]
+
+            test.save()
+
+        return 200
+
+    def check_hooktest_signature(self, body, hook_signature):
+        """ Check the signature sent by a request with the body
+
+        :param body: Raw body of the request
+        :param hub_signature: Signature sent by github
+        :return:
+        """
+        signature = '{0}'.format(hmac.new(bytes(self.hooktest_secret, encoding="utf-8"), body, hashlib.sha1).hexdigest())
+        print(signature, hook_signature)
+        if signature == hook_signature:
+            return True
+        else:
+            return False
 
     def check_github_signature(self, body, hub_signature):
         """ Check the signature sent by a request with the body

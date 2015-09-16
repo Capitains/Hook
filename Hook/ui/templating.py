@@ -41,13 +41,13 @@ def _format_log(string):
 
 @app.template_filter('tei')
 def _check_tei(string):
-    if string == "t":
+    if string == "tei":
         return "checked"
     return ""
 
 @app.template_filter('epidoc')
 def _check_epidoc(string):
-    if string == "e":
+    if string == "epidoc":
         return "checked"
     return ""
 

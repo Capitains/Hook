@@ -24,7 +24,7 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/repo/<username>/<reponame>', methods=["GET"])
+@app.route('/repo/<username>/<reponame>', methods=["GET", "POST"])
 def repo(username, reponame):
     kwargs = testctrl.read_repo(username, reponame, request)
     return render_template(
@@ -54,6 +54,14 @@ def api_test_payload():
     """ Handle GitHub payload
     """
     return testctrl.hook_run(request, request.headers)
+
+
+@app.route("/api/hooktest", methods=["POST"])
+def api_hooktest_log():
+    """
+    :return:d
+    """
+    return "", testctrl.handle_hooktest_log(request), {}
 
 
 @app.route("/api/rest/v1.0/user/repositories", methods=["GET", "POST"])
@@ -96,8 +104,8 @@ def repo_badge_coverage(username, reponame):
         return "", status, {}
 
 
-@app.route('/api/rest/v1.0/code/<username>/<reponame>/test', defaults={"branch": None})
-def api_test_generate_route(username, reponame, branch=None, creator=None, gravatar=None, sha=None):
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/test')
+def api_test_generate_route(username, reponame):
     """ Generate a test on the machine
 
     :param username: Name of the user
@@ -109,7 +117,7 @@ def api_test_generate_route(username, reponame, branch=None, creator=None, grava
 
     .:warning:. DISABLED
     """
-    return Hook.controllers.test_old.api_test_generate(username, reponame, branch, creator, gravatar, sha)
+    return testctrl.generate(username, reponame, callback_url=url_for("api_hooktest_log", _external=True))
 
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/<slug>/test/<uuid>', methods=["GET", "DELETE"])
 def api_test_status(username, reponame, slug, uuid):

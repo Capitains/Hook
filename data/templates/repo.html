@@ -44,12 +44,12 @@
                   <div class="col-sm-8">
                     <div class="radio">
                       <label>
-                        <input type="radio" name="dtd" value="t" {{repository.dtd|tei}}> TEI
+                        <input type="radio" name="dtd" value="tei" {{repository.dtd|tei}}> TEI
                       </label>
                     </div>
                     <div class="radio">
                       <label>
-                        <input type="radio" name="dtd" value="e" {{repository.dtd|epidoc}}> Epidoc
+                        <input type="radio" name="dtd" value="epidoc" {{repository.dtd|epidoc}}> Epidoc
                       </label>
                     </div>
                   </div>
@@ -118,7 +118,7 @@
                                 </div>
                               </td>
                               <td>
-                                {% if repository.isWritable() %}
+                                {% if repository.isWritable(current_user) %}
                                 <a href="{{url_for('api_test_status', username=repository.owner, reponame=repository.name, uuid=test.uuid, slug=test.branch_slug)}}" class="btn btn-xs btn-danger cancel-test" style="margin:1px;"><span class="glyphicon glyphicon-remove"></span></a> 
                                 {% endif %}
                                 <a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a>

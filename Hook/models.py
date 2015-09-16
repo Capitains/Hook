@@ -91,10 +91,14 @@ class Repository(db.Document):
     name = db.StringField(max_length=200, required=True)
     tested = db.BooleanField(default=False)
     hook_id = db.IntField(default=None)
-    dtd = db.StringField(default="t", max_length=1)
+    dtd = db.StringField(default="tei", max_length=3)
     master_pr = db.BooleanField(default=False)
     verbose = db.BooleanField(default=False)
     authors = db.ListField(db.ReferenceField(User))
+
+    @property
+    def full_name(self):
+        return self.owner + "/" + self.name
 
     def dict(self):
         return {
@@ -111,7 +115,7 @@ class Repository(db.Document):
         """ Update the object config """
         dtd, master_pr, verbose = self.dtd, False, False
         if "dtd" in form:
-            if form["dtd"] in ["t", "e"]:
+            if form["dtd"] in ["tei", "epidoc"]:
                 dtd = form["dtd"]
         if "masterpr" in form:
             master_pr = True
@@ -147,23 +151,27 @@ class Repository(db.Document):
         return None
 
 
-class DocLogs(db.EmbeddedDocument):
+class DocUnitStatus(db.EmbeddedDocument):
     """ Unittest level logs """
     title = db.StringField(max_length=255, required=True)
     status = db.BooleanField(required=False)
 
+class DocLogs(db.EmbeddedDocument):
+    """ Verbose result for unit test """
+    text = db.StringField(required=True)
 
 class DocTest(db.EmbeddedDocument):
     """ Complete Document level status"""
+    at = db.DateTimeField(default=datetime.datetime.now, required=True)
     path = db.StringField(required=True)
     status = db.BooleanField(required=True)
     coverage = db.FloatField(min_value=0.0, max_value=100.0, required=True)
-    logs = db.EmbeddedDocumentListField(DocLogs)
+    logs = db.EmbeddedDocumentListField(DocUnitStatus)
+    text_logs = db.EmbeddedDocumentListField(DocLogs)
 
-
-class RepoLogs(db.EmbeddedDocument):
-    text = db.StringField(required=True)
-
+    meta = {
+        'ordering': ['at']
+    }
 
 class RepoTest(db.Document):
     """ Complete repository status """
@@ -179,10 +187,9 @@ class RepoTest(db.Document):
     # Test results
     status = db.BooleanField(default=None)
     coverage = db.FloatField(min_value=0.0, max_value=100.0, default=None)
-    logs = db.EmbeddedDocumentListField(RepoLogs)
+    cts_metadata = db.IntField(default=0)
+    texts = db.IntField(default=0)
     units = db.EmbeddedDocumentListField(DocTest)
-    total = db.IntField(default=1)
-    tested = db.IntField(default=0)
 
     # Commit related informations
     user = db.StringField(default="")
@@ -194,10 +201,17 @@ class RepoTest(db.Document):
     scheme = db.StringField(default="tei")
     verbose = db.BooleanField(default=False)
 
-    CONFIG_KEYS = {"tei": "t", "epidoc": "e", "verbose": "v"}
     meta = {
         'ordering': ['-run_at']
     }
+
+    @property
+    def tested(self):
+        return len(self.units)
+
+    @property
+    def total(self):
+        return self.texts + self.cts_metadata
 
     def ctsized(self):
         """ Get information about CTSized texts
@@ -255,7 +269,7 @@ class RepoTest(db.Document):
         return answer
 
     @staticmethod
-    def Get_or_Create(uuid, repository, branch=None, slug=None, save=False, **kwargs):
+    def Get_or_Create(uuid, repository, branch=None, slug=None, **kwargs):
         """ Find said RepoTest is not found, create an instance for it
 
         :param repository: Repository for which the test has been performed
@@ -292,12 +306,11 @@ class RepoTest(db.Document):
                 repository=repository,
                 branch=branch,
                 branch_slug=slug,
-                scheme=repository.scheme,
+                scheme=repository.dtd,
                 verbose=repository.verbose,
                 **kwargs
             )
-            if save is True:
-                repo_test.save()
+            repo_test.save()
         else:
             repo_test = repo_test.first()
         return repo_test
