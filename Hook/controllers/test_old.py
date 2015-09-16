@@ -272,39 +272,6 @@ def update(report, logs, username, reponame, branch, uuid, nb_files=1, tested=0)
     repo_test.save()
     return repo_test
 
-def launch(username, reponame, ref, creator, gravatar, sha):
-    """ Launch test into multithread.
-
-    :param username: Name of the user
-    :type username: str
-    :param repository: Name of the repository
-    :type repository: str
-    :param ref: branch to be tested
-    :type ref: str
-
-    :returns: Identifier of the test
-    :rtype: str
-    """
-
-    if isinstance(ref, int):
-        ref = "PR #{0}".format(ref)
-    elif "/" in ref:
-        ref = ref.split("/")[-1]
-
-    uuid = str(uuid4())
-    background_status[uuid] = False
-
-    repo = Hook.models.github.RepoTest.Get_or_Create(uuid, username, reponame, ref)
-    repo.user = creator
-    repo.gravatar = gravatar
-    repo.sha = sha
-    repo.save()
-
-    background_main[uuid] = threading.Thread(target=lambda: test(uuid, username + "/" + reponame, ref, repo))
-    background_main[uuid].start()
-    watch(uuid, username + "/" + reponame, ref)
-
-    return uuid, repo.branch_slug
 
 
 def api_test_generate(username, reponame, branch=None, creator=None, gravatar=None, sha=None, github=False):

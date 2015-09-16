@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import Hook.models.github
 from Hook.models.user import User
+from Hook.models.github import Repository, RepoTest
 
 class Controller(object):
     """ Controller base object
@@ -103,6 +104,44 @@ class TestCtrl(Controller):
         super(TestCtrl, self).__init__(**kwargs)
         self.signature = signature
 
+    def read_repo(self, owner, repository, request):
+        """
+
+        :param owner:
+        :param repository:
+        :param request:
+        :return:
+        """
+
+        start, end = 0, 20
+        repository = Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
+
+        if request.method == "POST" and hasattr(self.g, "user") and self.g.user in repository.authors:
+            repository.config(request.form)
+
+        # PAGINATION !!!
+        tests = RepoTest.objects(
+            username__iexact=repository.owner,
+            reponame__iexact=repository.name
+        )
+        for test in tests:
+            test.branch = test.branch.split("/")[-1]
+
+        done = [test for test in tests if test.status is not None]
+        running = [test for test in tests if test.status is None]
+
+        for r in running:
+            if r.total > 0:
+                r.percent = int(r.tested / r.total * 100)
+            else:
+                r.percent = 0
+
+        return {
+            "repository": repository,
+            "tests": done,
+            "running": running
+        }
+
     def user(self, repository=None, required=False):
         """
             Raise 404 if user is required
@@ -193,15 +232,17 @@ class TestCtrl(Controller):
         :param headers:
         :return:
         """
-        status, message, status = "error", "Webhook query is not handled", 300
+        status, message, code = "error", "Webhook query is not handled", 300
         creator, sha, ref, url, do = None, None, None, None, None
 
         signature = headers.get("X-Hub-Signature")
         if not self.check_signature(request.data, signature):
-            return jsonify(
+            response = jsonify(
                 status="error",
                 message="Signature check did not pass"
             )
+            response.status_code = 300
+            return response
 
         payload = request.get_json(force=True)
         guid = headers.get("X-GitHub-Delivery")
@@ -231,7 +272,9 @@ class TestCtrl(Controller):
                     uuid=guid
                 )
 
-        return jsonify(status=status, message=message)
+        response = jsonify(status=status, message=message)
+        response.status_code = status
+        return response
 
     def status(self):
         pass
