@@ -8,7 +8,7 @@
               {{repository.owner}}/{{repository.name}}<a href="https://github.com/{{repository.owner}}/{{repository.name}}">
                 <span class="fa fa-github"></span>
               </a> 
-              {% if not repository.isWritable() %}
+              {% if not repository.isWritable(current_user) %}
               <div class="btn {{repository.tested|btn}} btn-xs"><span class="glyphicon glyphicon-off"></span></div>
               {% endif %}
               <img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name) }}" />
@@ -17,7 +17,7 @@
           </h1>
       </header>
       <div class="row">
-          {% if repository.isWritable() %}
+          {% if repository.isWritable(current_user) %}
           <div class="col-md-4">
               <h2>
                 Settings

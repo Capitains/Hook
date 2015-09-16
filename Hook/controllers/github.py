@@ -16,51 +16,6 @@ def Repository(repository):
         return repository.__class__
 
 
-def hook(repository):
-    """ Create or delete hooks on GitHub API
-
-    :param repository: Repository to add or delete the hook from
-    :type repository: Hook.models.github.Repository
-
-    :returns: Active status
-    """
-    uri = "repos/{owner}/{repo}/hooks".format(owner=repository.owner, repo=repository.name)
-    payload = app.config["DOMAIN"] + url_for("api_test_payload")
-
-    if repository.tested is True:
-        # Create hooks
-        hook_data = {
-          "name": "web",
-          "active": True,
-          "events": [
-            "push",
-            "pull_request"
-          ],
-          "config": {
-            "url": payload,
-            "content_type": "json",
-            "secret": app.config["GITHUB_HOOK_SECRET"]
-          }
-        }
-        service = github_api.post(uri, data=hook_data)
-        if "id" in service:
-            repository.update(hook_id=service["id"])
-    else:
-        if repository.hook_id is None:
-            hooks = github_api.get(uri)
-            hooks = [service for service in hooks if service["config"]["url"] == payload]
-            if len(hooks) == 0:
-                uuid = None
-            else:
-                uuid = hooks[0]["id"]
-        else:
-            uuid = repository.hook_id
-        if uuid is not None:
-            github_api.delete("repos/{owner}/{repo}/hooks/{id}".format(owner=repository.owner, repo=repository.name, id=uuid))
-
-    return repository.tested
-
-
 def git_status(repository_test, state="pending"):
     """ Add the status of a Repository test to github
 
@@ -116,7 +71,7 @@ def fetch(user):
     response = []
     if hasattr(g, "user") and g.user == user:
         # We clear the old authors
-        user.clean()
+        user.remove_authorship()
 
         repositories = github_api.get(
             "user/repos",

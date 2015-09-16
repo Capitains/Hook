@@ -18,8 +18,18 @@ login_manager.init_app(app)
 
 
 userctrl = UserCtrl(api=github_api, db=db, g=g, session=session)
-testctrl = TestCtrl(api=github_api, db=db, g=g, session=session, signature=app.config["GITHUB_HOOK_SECRET"])
-
+testctrl = TestCtrl(
+    api=github_api,
+    db=db,
+    g=g,
+    session=session,
+    redis=app.config["REDIS_URL"],
+    signature=app.config["GITHUB_HOOK_SECRET"],
+    hooktest_path=app.config["HOOKTEST_PATH"],
+    hooktest_secret=app.config["HOOKTEST_SECRET"],
+    workers=app.config["HOOKTEST_WORKERS"],
+    domain=app.config["DOMAIN"]
+)
 
 @app.before_request
 def before_request():
@@ -46,5 +56,5 @@ def token_getter():
         if user is not None:
             return user.github_access_token
 
-
-import Hook.routes
+from Hook.ui.templating import *
+from Hook.routes import *

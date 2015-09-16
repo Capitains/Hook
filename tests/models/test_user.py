@@ -1,6 +1,6 @@
 from flask.ext.testing import TestCase
 from flask import Flask
-
+import Hook.models
 
 import Hook.models.user
 
@@ -17,7 +17,7 @@ class TestUser(TestCase):
         """ Test required property """
         keys = []
         try:
-            u = Hook.models.user.User(mail="something")
+            u = Hook.models.User(mail="something")
             u.save()
         except Exception as E:
             keys += list(E.errors.keys())
@@ -31,7 +31,7 @@ class TestUser(TestCase):
         ])
 
     def test_working(self):
-        u = Hook.models.user.User(
+        u = Hook.models.User(
             mail="something",
             git_id=567,
             github_access_token="123456",

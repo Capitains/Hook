@@ -1,16 +1,88 @@
 import datetime
 import re
+
 from flask import g
 from Hook.extensions import db
 from Hook.utils import slugify
-
-import Hook.extensions
-import Hook.models.user
 
 __author__ = 'Thibault Clerice'
 
 
 pr_finder = re.compile("PR #([0-9]+)")
+
+
+class User(db.Document):
+    """ User information """
+    uuid  = db.StringField(max_length=200, required=True)
+    mail = db.StringField(required=False)
+    login = db.StringField(required=True)
+    git_id = db.IntField(required=True)
+    github_access_token = db.StringField(max_length=200, required=True)
+    refreshed = db.DateTimeField(default=datetime.datetime.now, required=True)
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and other.uuid == self.uuid
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_active(self):
+        return True
+
+    def get_id(self):
+        return self.uuid
+
+    def remove_authorship(self):
+        """ Remove list of repositories """
+        for repo in self.repositories:
+            repo.update(pull__authors=self)
+
+    @property
+    def repositories(self):
+        return list(Repository.objects(authors__in=[self]))
+
+    @property
+    def organizations(self):
+        return Repository.objects(authors__in=[self]).distinct("owner")
+
+    @property
+    def testable(self):
+        return Repository.objects(authors__in=[self], tested=True)
+
+    def switch(self, owner, name, callback):
+        return Repository.switch(owner, name, self, callback)
+
+    def repository(self, owner, name):
+        return Repository.objects(authors__in=[self], owner__iexact=owner, name__iexact=name)
+
+    def addto(self, owner, name):
+        """ Add the user to the authors of a repository. Create
+            Create the repository if required
+
+        :param owner: Owner name of the repository
+        :type owner: str
+        :param name: Name of the repository
+        :type name: str
+
+        :return: New or Updated repository
+        :rtype: Repository
+        """
+        repo_db = self.repository(owner=owner, name=name)
+
+        if len(repo_db) > 0:
+            repo_db = repo_db.first()
+            repo_db.update(push__authors=self)
+        else:
+            repo_db = Repository(owner=owner, name=name, authors=[self])
+            repo_db.save()
+
+        return repo_db
 
 
 class Repository(db.Document):
@@ -22,7 +94,7 @@ class Repository(db.Document):
     dtd = db.StringField(default="t", max_length=1)
     master_pr = db.BooleanField(default=False)
     verbose = db.BooleanField(default=False)
-    authors = db.ListField(db.ReferenceField(Hook.models.user.User))
+    authors = db.ListField(db.ReferenceField(User))
 
     def dict(self):
         return {
@@ -30,8 +102,8 @@ class Repository(db.Document):
             "name": self.name
         }
 
-    def isWritable(self):
-        if g.user and g.user in self.authors:
+    def isWritable(self, user):
+        if user in self.authors:
             return True
         return False
 
@@ -59,7 +131,7 @@ class Repository(db.Document):
         :param name: Name of the repository
         :type name: str
         :param user: User author of the repository
-        :type user: Hook.models.user.User
+        :type user: user.User
         :param callback: Function to call when DB switch has been done
         :type callback: function
 
@@ -95,27 +167,34 @@ class RepoLogs(db.EmbeddedDocument):
 
 class RepoTest(db.Document):
     """ Complete repository status """
+    # Running informations
     run_at = db.DateTimeField(default=datetime.datetime.now, required=True)
     uuid = db.StringField(required=True)
-    username = db.StringField(required=True)
-    reponame = db.StringField(required=True)
-    userrepo = db.StringField(required=True)
+
+    # Inventory not moving information
+    repository = db.ReferenceField(Repository)
     branch = db.StringField(default=None)
     branch_slug = db.StringField(required=True)
+
+    # Test results
     status = db.BooleanField(default=None)
     coverage = db.FloatField(min_value=0.0, max_value=100.0, default=None)
     logs = db.EmbeddedDocumentListField(RepoLogs)
     units = db.EmbeddedDocumentListField(DocTest)
     total = db.IntField(default=1)
     tested = db.IntField(default=0)
-    config = db.ListField(db.StringField())
-    repository = db.ReferenceField(Repository)
 
+    # Commit related informations
     user = db.StringField(default="")
     gravatar = db.StringField(default="")
     sha = db.StringField(default="")
+    link = db.StringField()
 
-    DTDS_KEYS = {"tei": "t", "epidoc": "e", "verbose": "v"}
+    # Test Configuration
+    scheme = db.StringField(default="tei")
+    verbose = db.BooleanField(default=False)
+
+    CONFIG_KEYS = {"tei": "t", "epidoc": "e", "verbose": "v"}
     meta = {
         'ordering': ['-run_at']
     }
@@ -129,28 +208,24 @@ class RepoTest(db.Document):
         units = [unit.status for unit in  self.units if "__cts__.xml" not in unit.path]
         return units.count(True), len(units)
 
-    def config_to(self):
-        return [RepoTest.DTDS_KEYS[key] for key in self.config if key in dtds]
-
     @staticmethod
-    def report(username, reponame, slug=None, uuid=None, repo_test=None):
+    def report(repository, slug=None, uuid=None, repo_test=None):
         """ Return the logs and status when the test is finished
 
-
-        :param username: Name of the user
-        :type username: str
-        :param reponame: Name of the repository
-        :type reponame: str
+        :param repository: Repository for which the test has been performed
+        :type repository: Repository
         :param slug: branch to be tested
         :type slug: str
         :param uuid: Unique identifier for the current test
         :type uuid: str
+        :param repo_test: RepoTest object for which to find the report
+        :type repo_test: RepoTest
 
         :returns: Logs, Detailed report, Current progress, Overall status
         :rtype: list, dict, dict, int
         """
         if repo_test is None:
-            repo_test = RepoTest.objects.get_or_404(username=username, reponame=reponame, branch_slug__iexact=slug, uuid=uuid)
+            repo_test = RepoTest.objects.get_or_404(repository=repository, branch_slug__iexact=slug, uuid=uuid)
 
         units = {}
 
@@ -180,13 +255,11 @@ class RepoTest(db.Document):
         return answer
 
     @staticmethod
-    def Get_or_Create(uuid, username, reponame, branch=None, slug=None, save=False):
+    def Get_or_Create(uuid, repository, branch=None, slug=None, save=False, **kwargs):
         """ Find said RepoTest is not found, create an instance for it
 
-        :param username: Username of the repo's owner
-        :type username: str
-        :param reponame: Repository's name
-        :type reponame: str
+        :param repository: Repository for which the test has been performed
+        :type repository: Repository
         :param branch: Branch's name
         :type branch: str
         :param uuid: Id representing the test
@@ -202,31 +275,26 @@ class RepoTest(db.Document):
         if slug is not None:
             repo_test = RepoTest.objects(
                 uuid__iexact=uuid,
-                username__iexact=username,
-                reponame__iexact=reponame,
-                branch_slug__iexact=slug,
-                userrepo__iexact=username+"/"+reponame
+                repository=repository,
+                branch_slug__iexact=slug
             )
         else:
             slug = slugify(branch)
             repo_test = RepoTest.objects(
                 uuid__iexact=uuid,
-                username__iexact=username,
-                reponame__iexact=reponame,
+                repository=repository,
                 branch__iexact=branch,
-                userrepo__iexact=username+"/"+reponame,
                 branch_slug=slug
             )
         if len(repo_test) == 0:
-            repository = Repository.objects.get(owner__iexact=username, name__iexact=reponame)
             repo_test = RepoTest(
                 uuid=uuid,
-                username=username,
-                reponame=reponame,
+                repository=repository,
                 branch=branch,
-                userrepo=username+"/"+reponame,
                 branch_slug=slug,
-                config=RepoTest.config_from(repository)
+                scheme=repository.scheme,
+                verbose=repository.verbose,
+                **kwargs
             )
             if save is True:
                 repo_test.save()
@@ -257,21 +325,3 @@ class RepoTest(db.Document):
             return False
 
         return True
-
-    @staticmethod
-    def config_from(repository):
-        """ Make a RepoTest config from a Repository object
-
-        :param repository: Repository object to read the configuration from
-        :type repository: RepoTest
-        :returns: List of options
-        :rtype: list
-        """
-        config = []
-        dtds = {"t": "tei", "e": "epidoc"}
-        config.append(dtds[repository.dtd])
-
-        if repository.verbose:
-            config.append("verbose")
-
-        return config
