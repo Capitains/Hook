@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from flask import redirect, jsonify
 from rq import Queue
+from rq.job import Job, JobStatus
 from redis import Redis
 
 from HookTest.test import cmd
@@ -63,15 +64,6 @@ class UserCtrl(Controller):
         if len(user) == 0:
             # Make a call to the API
             more = self.api.get("user", params={"access_token": access_token})
-            print(
-                dict(
-                    uuid=str(uuid4()),
-                    github_access_token=access_token,
-                    mail=more["email"],
-                    git_id=more["id"],
-                    login=more["login"]
-                )
-            )
             user = User(
                 uuid=str(uuid4()),
                 github_access_token=access_token,
@@ -138,6 +130,31 @@ class TestCtrl(Controller):
     :param db: MongoDB Engine
 
     """
+    @staticmethod
+    def slice(elements, start, max=None):
+        """ Return a sublist of elements, starting from index {start} with a length of {max}
+
+        :param elements: List of elements to slice
+        :type elements: list
+        :param start: Starting element (0-based Index)
+        :type start: int
+        :param max: Maximum number of elements to return
+        :type max: int
+
+        :return: (Sublist, Starting index of the sublist, end_index)
+        :rtype: (list, int, int)
+        """
+        length = len(elements)
+        real_index = start + 1
+        if length < real_index:
+            return [], length, 0
+        else:
+            if max is not None and max + start < length:
+                return elements[start:max+start], start, max+start
+            else:
+                return elements[start:], start, length - 1
+
+
     def __init__(self, signature, redis, hooktest_path, hooktest_secret, workers, domain, **kwargs):
         super(TestCtrl, self).__init__(**kwargs)
         self.signature = signature
@@ -148,7 +165,7 @@ class TestCtrl(Controller):
         self.hooktest_secret = hooktest_secret
 
     def read_repo(self, owner, repository, request):
-        """ Read the reposiutory tests
+        """ Read the repository tests
 
         :param owner:
         :param repository:
@@ -170,8 +187,8 @@ class TestCtrl(Controller):
         for test in tests:
             test.branch = test.branch.split("/")[-1]
 
-        done = [test for test in tests if test.status is not None]
-        running = [test for test in tests if test.status is None]
+        done = [test for test in tests if test.finished]
+        running = [test for test in tests if test.finished == False]
 
         for r in running:
             if r.total > 0:
@@ -184,6 +201,39 @@ class TestCtrl(Controller):
             "tests": done,
             "running": running
         }
+
+    def repo_report(self, owner, repository, uuid, start=0, limit=None, json=False):
+        """ Generate data for repository report
+
+        :param owner:
+        :param repository:
+        :param uuid:
+        :param start: Starting item (0 based)
+        :type int:
+        :param limit: Number of logs line to show
+        :type limit: int
+        :param json: Returns json
+        :type json: bool
+        :return:
+        """
+
+        repository = Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
+        test = RepoTest.objects.get_or_404(repository=repository, uuid=uuid)
+        report = RepoTest.report(owner, repository, repo_test=test)
+
+        report["start"] = 0
+        report["end"] = report["count_logs"] = len(report["logs"])
+        if isinstance(start, int) and start != 0 or limit is not None:
+            report["logs"], report["start"], report["end"] = TestCtrl.slice(report["logs"], start, limit)
+
+        if json is True:
+            return jsonify(report)
+        else:
+            return {
+                "report": report,
+                "repository": repository,
+                "test" : test
+            }, 200, {}
 
     def user(self, repository=None, required=False):
         """
@@ -218,7 +268,7 @@ class TestCtrl(Controller):
         ref = "master"
         creator = status[0]["author"]["login"]
         guid = str(uuid4())
-        url = status[0]["url"]
+        url = status[0]["html_url"]
 
         return ref, creator, sha, url, guid
 
@@ -237,7 +287,6 @@ class TestCtrl(Controller):
         :param url: URL of the resource
         :param uuid: UUID to use
         """
-        avatar = "https://avatars.githubusercontent.com/{0}".format(creator)
         repo = Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
         status = 200
 
@@ -247,6 +296,8 @@ class TestCtrl(Controller):
                 return informations
             else:
                 ref, creator, sha, url, uuid = informations
+
+        avatar = "https://avatars.githubusercontent.com/{0}".format(creator)
 
         test = RepoTest.Get_or_Create(
             uuid=uuid,
@@ -260,7 +311,7 @@ class TestCtrl(Controller):
 
         self.dispatch(test, callback_url)
 
-        return jsonify(status="success", msg="Test launched")
+        return jsonify(status="success", msg="Test launched", uuid=uuid)
 
     def dispatch(self, test, callback_url):
         """ Dispatch a test to the redis queue
@@ -271,7 +322,7 @@ class TestCtrl(Controller):
 
         redis_conn = Redis(self.redis)
         q = Queue(connection=redis_conn)
-        q.enqueue_call(
+        job = q.enqueue_call(
             func=cmd,
             kwargs={
                 "path": self.hooktest_path,
@@ -287,6 +338,7 @@ class TestCtrl(Controller):
             timeout=3600,
             result_ttl=86400
         )
+        test.update(hash=job.get_id(), status="inqueue")
 
     def handle_hooktest_log(self, request):
         """ Handle data received from Redis server commands
@@ -306,6 +358,11 @@ class TestCtrl(Controller):
         data = json.loads(request.data.decode('utf-8'))
 
         # If the test just started
+        if "status" in data:
+            test.update(status=data["status"])
+        if "message" in data:
+            test.update(error_message=data["message"])
+
         if "files" in data and "inventories" in data and "texts" in data:
             test.update(
                 texts=data["texts"],
@@ -332,6 +389,7 @@ class TestCtrl(Controller):
                         ))
 
                     test.units.append(unit_mongo)
+
             if "coverage" in data:
                 test.coverage = data["coverage"]
                 test.status = data["status"]
@@ -347,8 +405,13 @@ class TestCtrl(Controller):
         :param hub_signature: Signature sent by github
         :return:
         """
-        signature = '{0}'.format(hmac.new(bytes(self.hooktest_secret, encoding="utf-8"), body, hashlib.sha1).hexdigest())
-        print(signature, hook_signature)
+        signature = '{0}'.format(
+            hmac.new(
+                bytes(self.hooktest_secret, encoding="utf-8"),
+                body,
+                hashlib.sha1
+            ).hexdigest()
+        )
         if signature == hook_signature:
             return True
         else:
@@ -418,14 +481,22 @@ class TestCtrl(Controller):
         response.status_code = status
         return response
 
-    def status(self):
-        pass
 
-    def cancel(self):
-        pass
+    def cancel(self, owner, repository, uuid=None):
+        """ Cancel a test
 
-    def result(self):
-        pass
+        :param owner:
+        :param repository:
+        :param uuid:
+        :return:
+        """
+        if uuid is None:
+            return "Unknown test", 404, {}
+        repo = Repository.objects.get_or_404(username__iexact=owner, name__iexact=repository)
+        test = RepoTest.objects.get_or_404(repository=repo, uuid__iexact=uuid)
+        test.update(status=False, total=0, tested=0)
+        return jsonify(cancelled=True)
+
 
     def link(self, owner, repository, callback_url):
         """ Set Github to start or stop pinging the current repository
@@ -518,7 +589,7 @@ class TestCtrl(Controller):
 
         cts, total = repo.ctsized()
         template = "svg/cts.xml"
-        return template, {"cts": cts, "total": total}, {}, 200
+        return template, {"cts": cts, "total": total}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
 
     def status_badge(self, username, reponame, branch=None, uuid=None):
         """ Create a status badge
@@ -538,14 +609,10 @@ class TestCtrl(Controller):
 
         if not repo:
             return None, 404, {}
-        elif repo.status is None:
-            template = "svg/build.unknown.xml"
-        elif repo.status is True:
-            template = "svg/build.success.xml"
         else:
-            template = "svg/build.failure.xml"
+            template = "svg/build.{0}.xml".format(repo.status)
 
-        return template, {'Content-Type': 'image/svg+xml; charset=utf-8'}, 200
+        return template, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
 
     def coverage_badge(self, username, reponame, branch=None, uuid=None):
         """ Create a status badge
@@ -559,18 +626,16 @@ class TestCtrl(Controller):
         repo = self.repo(
             owner=username,
             name=reponame,
-            branch_slug=branch,
+            branch=branch,
             uuid=uuid
         )
 
-        if not repo and not repo.coverage:
-            return None, None, 404, {}
+        if not repo or not repo.coverage:
+            return "svg/build.coverage.unknown.xml", {}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
 
         score = math.floor(repo.coverage * 100) / 100
 
-        if repo.coverage is None:
-            template = "svg/build.coverage.unknown.xml"
-        elif repo.coverage > 90:
+        if repo.coverage > 90:
             template = "svg/build.coverage.success.xml"
         elif repo.coverage > 75:
             template = "svg/build.coverage.acceptable.xml"
@@ -580,18 +645,22 @@ class TestCtrl(Controller):
         return template, {"score": score}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
 
     def repo(self, **kwargs):
+        """ Helper to find repo
+        :param kwargs:
+        :return:
+        """
         kwargs = {key+"__iexact":value for key, value in kwargs.items() if value is not None}
-        repo_args = {key:value for key, value in kwargs.items() if key not in ["uuid", "branch"]}
+        repo_args = {key:value for key, value in kwargs.items() if key not in ["uuid__iexact", "branch__iexact"]}
 
         repo = Repository.objects.get_or_404(**repo_args)
 
         test_args = {"repository": repo}
 
         if "branch" in kwargs:
-            test_args["branch"] = kwargs["branch"]
+            test_args["branch__iexact"] = kwargs["branch__iexact"]
 
-        if "uuid" in kwargs:
-            test_args["uuid"] = kwargs["uuid"]
+        if "uuid__iexact" in kwargs:
+            test_args["uuid__iexact"] = kwargs["uuid__iexact"]
             test = RepoTest.objects(**test_args)
         else:
             test = RepoTest.objects(**test_args)

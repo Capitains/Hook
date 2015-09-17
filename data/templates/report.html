@@ -12,7 +12,7 @@
                   <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name,branch=test.branch_slug, uuid=test.uuid) }}" />
               </h1>
               <div class="dl-horizontal card">
-                <div class="left {{test.status|success_class}}">
+                <div class="left {{test.status}}">
                   <span class="glyphicon glyphicon-cog"></span>
                 </div>
                 <div class="row">
@@ -25,17 +25,21 @@
                   <div class="col-md-9 text-right">
                     <img class="user" src="{{test.gravatar}}?s=50" alt="{{test.user}}" />
                     {{test.user}}
-                    {{test.sha[0:8]}}
+                    <a href="{{test.link}}" target="_blank">{{test.sha[0:8]}}</a>
                   </div>
                 </div>
               </div>
           </header>
         </div>
+        {% if test.error_message %}
+          <em>Traceback :</em>
+          <pre style="margin:5%;" class="pre-scrollable">{{test.error_message}}</pre>
+        {% endif %}
         <div class="row">
           <section class="col-md-12">
             <ol class="logs" id="log-container">
-              {% for log in test.logs if log.text %}
-                <li>{{log.text|format_log}}</li>
+              {% for log in report["logs"] %}
+                <li>{{log|format_log}}</li>
               {% endfor %}
             </ol>
           </section>
@@ -44,8 +48,8 @@
 {% endblock %}
 
 {% block script %}
-{% if test.status is none %}
-<input type="hidden" href="{{url_for('api_test_status', username=test.username, reponame=test.reponame, slug=test.branch_slug, uuid=test.uuid)}}" data-target="#log-container" id="informations-log"/>
+{% if not test.finished %}
+<input type="hidden" href="{{url_for('api_repo_history', username=repository.owner, reponame=repository.name)}}?uuid={{test.uuid}}" data-target="#log-container" id="informations-log"/>
 <script type="text/javascript">
   $(document).ready(function() {
 

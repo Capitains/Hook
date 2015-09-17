@@ -34,19 +34,11 @@ def repo(username, reponame):
 
 @app.route('/repo/<username>/<reponame>/<uuid>')
 def repo_test_report(username, reponame, uuid):
-    pass
-    """
-    repository = Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
-    test = RepoTest.objects.get_or_404(username__iexact=username, reponame__iexact=reponame, uuid=uuid)
-    report = RepoTest.report(username, reponame, repo_test=test)
-
-    return render_template(
-        'report.html',
-        report=report,
-        repository=repository,
-        test=test
-    )
-    """
+    kwargs, status, header = testctrl.repo_report(username, reponame, uuid)
+    if status == 200:
+        return render_template("report.html", **kwargs)
+    else:
+        return kwargs, status, header
 
 
 @app.route("/api/github/payload", methods=['POST'])
@@ -79,7 +71,7 @@ def repo_badge_status(username, reponame):
     """ Get a Badge for a repo """
     response, status, header = testctrl.status_badge(username, reponame, branch=request.args.get("branch"), uuid=request.args.get("uuid"))
     if response:
-        return render_template(response), header, status
+        return render_template(response), status, header
     else:
         return "", status, {}
 
@@ -89,7 +81,7 @@ def repo_cts_status(username, reponame):
     """ Get a Badge for a repo """
     response, kwargs, status, header = testctrl.cts_badge(username, reponame, branch=request.args.get("branch"), uuid=request.args.get("uuid"))
     if response:
-        return render_template(response, **kwargs), header, status
+        return render_template(response, **kwargs), status, header
     else:
         return "", status, {}
 
@@ -97,9 +89,9 @@ def repo_cts_status(username, reponame):
 @app.route('/api/rest/v1.0/code/<username>/<reponame>/coverage.svg')
 def repo_badge_coverage(username, reponame):
     """ Get a Badge for a repo """
-    response, kwargs, status, header = testctrl.cts_badge(username, reponame, branch=request.args.get("branch"), uuid=request.args.get("uuid"))
+    response, kwargs, status, header = testctrl.coverage_badge(username, reponame, branch=request.args.get("branch"), uuid=request.args.get("uuid"))
     if response:
-        return render_template(response, **kwargs), header, status
+        return render_template(response, **kwargs), status, header
     else:
         return "", status, {}
 
@@ -119,29 +111,20 @@ def api_test_generate_route(username, reponame):
     """
     return testctrl.generate(username, reponame, callback_url=url_for("api_hooktest_log", _external=True))
 
-@app.route('/api/rest/v1.0/code/<username>/<reponame>/<slug>/test/<uuid>', methods=["GET", "DELETE"])
-def api_test_status(username, reponame, slug, uuid):
-    """ Show status of a test
-    """
-    if request.method == "DELETE":
-        test = Hook.models.RepoTest.objects.get_or_404(username__iexact=username, reponame__iexact=reponame, branch_slug__iexact=slug, uuid=uuid)
-        Hook.controllers.test_old.remove(test.uuid)
-        test.update(status=False, total=0, tested=0)
-        test.git_status(True)
-        return jsonify(cancelled=True)
-
-    answer = Hook.models.RepoTest.report(username, reponame, slug=slug, uuid=uuid)
-    line = request.args.get("from")
-    if line:
-        line = int(line)
-        if len(answer["logs"]) > line + 3:
-            answer["logs"] = answer["logs"][line:]
-        else:
-            answer["logs"] = []
-    return jsonify(answer)
-
-@app.route('/api/rest/v1.0/code/<username>/<reponame>')
+@app.route('/api/rest/v1.0/code/<username>/<reponame>', methods=["GET", "DELETE"])
 def api_repo_history(username, reponame):
     """ Return json history of previous tests
     """
-    return testctrl.history(username, reponame)
+    if request.method == "DELETE":
+        return testctrl.cancel(username, reponame, uuid=request.args.get("uuid"))
+    elif request.args.get("uuid"):
+        return testctrl.repo_report(
+            username,
+            reponame,
+            uuid=request.args.get("uuid"),
+            start=request.args.get("start", 0, type=int),
+            limit=request.args.get("limit", None, type=int),
+            json=True
+        )
+    else:
+        return testctrl.history(username, reponame)

@@ -23,13 +23,11 @@ var reload = function(element) {
     var href = element.attr("href"),
         target = $(element.data("target"));
 
-    $.get(href, { from: target.find("li").length || 0 }).success(function(data) {
-        if(data.done !== null) {
-            location.reload();
-        } else {
-            for (var i = 0; i < data.logs.length; i++) {
-                target.append($("<li>" + format_log(data.logs[i]) + "</li>"));
-            };
+    $.get(href, { start: target.find("li").length || 0 }).success(function(data) {
+        for (var i = 0; i < data.logs.length; i++) {
+            target.append($("<li>" + format_log(data.logs[i]) + "</li>"));
+        };
+        if (data.status_string != "failed" && data.status_string != "error" && data.status_string != "success") || data.logs_count !== data.end + 1) {
             setTimeout(function() { reload(element); }, 10000);
         }
     }).error(function() {

@@ -92,8 +92,14 @@ ol.logs i {
 ol.logs .success {
   color:#8c9440;
 }
-ol.logs .failure {
+ol.logs .failed {
   color:#a54242;
+}
+ol.logs .error {
+  color:#FF0000;
+}
+ol.logs .pending{
+  color:#dfb317;
 }
 ol.logs .verbose {
   padding-left:15px;
@@ -164,12 +170,28 @@ img.user-20 {
   color:#fff;
   font-size: 1.2em;
 }
+td > .hookbadge {
+  font-family: DejaVu Sans,Verdana,Geneva,sans-serif;
+  font-size:11px;
+  height:20px;
+  line-height:20px;
+  color:white;
+  width:60px;
+  margin:auto auto;
+  text-align:center;
+ }
 
-.card > .left.success {
+.card > .left.success, td > .hookbadge.success {
   background-color: #5cb85c;
 }
-.card > .left.failure {
+.card > .left.failed, td > .hookbadge.failed {
   background-color: #d9534f;
+}
+.card > .left.error, td > .hookbadge.error {
+    background-color:#FF0000;
+}
+.card > .left.pending, td > .hookbadge.pending {
+    background-color:#dfb317;
 }
 
 h1 {

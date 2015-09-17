@@ -11,9 +11,11 @@
               {% if not repository.isWritable(current_user) %}
               <div class="btn {{repository.tested|btn}} btn-xs"><span class="glyphicon glyphicon-off"></span></div>
               {% endif %}
+              {% if tests|length > 0 %}
               <img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name) }}" />
               <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name) }}" />
               <img alt="CTS badge" src="{{ url_for('repo_cts_status', username=repository.owner, reponame=repository.name) }}" />
+              {% endif %}
           </h1>
       </header>
       <div class="row">
@@ -98,8 +100,8 @@
                           <th>User</th>
                           <th>Status</th>
                           <th>Coverage</th>
+                          <th>Total Files</th>
                           <th>Files tested</th>
-                          <th>Files passing</th>
                           <th>Logs</th>
                       </tr>
                   </thead>
@@ -119,7 +121,7 @@
                               </td>
                               <td>
                                 {% if repository.isWritable(current_user) %}
-                                <a href="{{url_for('api_test_status', username=repository.owner, reponame=repository.name, uuid=test.uuid, slug=test.branch_slug)}}" class="btn btn-xs btn-danger cancel-test" style="margin:1px;"><span class="glyphicon glyphicon-remove"></span></a> 
+                                <a href="{{url_for('api_repo_history', username=repository.owner, reponame=repository.name)}}?uuid={{test.uuid}}" class="btn btn-xs btn-danger cancel-test" style="margin:1px;"><span class="glyphicon glyphicon-remove"></span></a>
                                 {% endif %}
                                 <a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a>
                               </td>
@@ -131,8 +133,8 @@
                               <td>{{test.run_at}}</td>
                               <td>{{test.branch}}</td>
                               <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
-                              <td><img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
-                              <td><img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name, branch=test.branch_slug, uuid=test.uuid) }}" /></td>
+                              <td><div  class="hookbadge {{test.status}}">{{test.status}}</div></td>
+                              <td>{{test.coverage}}</td>
                               <td>{{test.total}}</td>
                               <td>{{test.tested}}</td>
                               <td><a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>

@@ -173,11 +173,14 @@ class DocTest(db.EmbeddedDocument):
         'ordering': ['at']
     }
 
+
 class RepoTest(db.Document):
     """ Complete repository status """
     # Running informations
+    POSSIBLE_STATUS = ["queued", "downloading", "pending", "failed", "error", "success"]
     run_at = db.DateTimeField(default=datetime.datetime.now, required=True)
     uuid = db.StringField(required=True)
+    hash = db.StringField()
 
     # Inventory not moving information
     repository = db.ReferenceField(Repository)
@@ -185,7 +188,9 @@ class RepoTest(db.Document):
     branch_slug = db.StringField(required=True)
 
     # Test results
-    status = db.BooleanField(default=None)
+    status = db.StringField(default="queued")
+    error_message = db.StringField(default=None)
+    # inqueue, downloading, pending, failed, error, success
     coverage = db.FloatField(min_value=0.0, max_value=100.0, default=None)
     cts_metadata = db.IntField(default=0)
     texts = db.IntField(default=0)
@@ -212,6 +217,10 @@ class RepoTest(db.Document):
     @property
     def total(self):
         return self.texts + self.cts_metadata
+
+    @property
+    def finished(self):
+        return self.status in ["failed", "error", "success"]
 
     def ctsized(self):
         """ Get information about CTSized texts
@@ -243,10 +252,6 @@ class RepoTest(db.Document):
 
         units = {}
 
-        if repo_test.status is None:
-            done = None
-        else:
-            done = int(repo_test.status)
 
         for document in repo_test.units:
             units[document.path] = {
@@ -257,13 +262,14 @@ class RepoTest(db.Document):
 
         answer = {
             "progress": {"files": repo_test.total, "tested": repo_test.tested},
-            "logs": [log.text for log in repo_test.logs],
+            "logs": [log.text for unit in repo_test.units for log in unit.text_logs],
             "report": {
                 "coverage": repo_test.coverage,
                 "status": repo_test.status,
                 "units": units
             },
-            "done": done
+            "status": repo_test.status,
+            "error" : repo_test.error_message
         }
 
         return answer
