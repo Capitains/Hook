@@ -18,7 +18,7 @@ class Controller(object):
 
     :param api: Github API DB
     :param db: MongoDB Engine
-
+/tests
     """
     def __init__(self, api, db, g, session):
         self.api = api
@@ -183,6 +183,8 @@ class TestCtrl(Controller):
         # PAGINATION !!!
         tests = RepoTest.objects(
             repository=repository
+        ).exclude(
+            "units"
         )
         for test in tests:
             test.branch = test.branch.split("/")[-1]
@@ -218,22 +220,42 @@ class TestCtrl(Controller):
         """
 
         repository = Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
-        test = RepoTest.objects.get_or_404(repository=repository, uuid=uuid)
-        report = RepoTest.report(owner, repository, repo_test=test)
-
-        report["start"] = 0
-        report["end"] = report["count_logs"] = len(report["logs"])
-        if isinstance(start, int) and start != 0 or limit is not None:
-            report["logs"], report["start"], report["end"] = TestCtrl.slice(report["logs"], start, limit)
+        test = RepoTest\
+            .objects(repository=repository, uuid=uuid)\
+            .exclude("units.text_logs")\
+            .first()
 
         if json is True:
-            return jsonify(report)
+            return jsonify(test.units_status())
         else:
             return {
-                "report": report,
                 "repository": repository,
-                "test" : test
+                "test": test
             }, 200, {}
+
+    def repo_report_unit(self, owner, repository, uuid, unit):
+        """ Generate data for repository report
+
+        :param owner:
+        :param repository:
+        :param uuid:
+        :param start: Starting item (0 based)
+        :type int:
+        :param limit: Number of logs line to show
+        :type limit: int
+        :param json: Returns json
+        :type json: bool
+        :return:
+        """
+
+        repository = Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
+        if unit == "all":
+            test = RepoTest.objects.get_or_404(repository=repository, uuid=uuid)
+        else:
+            test = DocTest.objects.get_or_404(path=unit,repository=repository, uuid=uuid)
+        report = RepoTest.report(owner, repository, repo_test=test)
+
+        return jsonify(report)
 
     def user(self, repository=None, required=False):
         """
