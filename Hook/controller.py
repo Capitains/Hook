@@ -226,7 +226,7 @@ class TestCtrl(Controller):
             .first()
 
         if json is True:
-            return jsonify(test.units_status())
+            return jsonify(units=test.units_status())
         else:
             return {
                 "repository": repository,
@@ -251,9 +251,16 @@ class TestCtrl(Controller):
         repository = Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
         if unit == "all":
             test = RepoTest.objects.get_or_404(repository=repository, uuid=uuid)
+            report = RepoTest.report(owner, repository, repo_test=test)
         else:
-            test = DocTest.objects.get_or_404(path=unit,repository=repository, uuid=uuid)
-        report = RepoTest.report(owner, repository, repo_test=test)
+            test = RepoTest.objects(
+                repository=repository, uuid=uuid
+            ).first().units.filter(
+                path=unit
+            ).first()
+            if test is None:
+                return "", 404
+            report = DocTest.report(test)
 
         return jsonify(report)
 
@@ -505,7 +512,6 @@ class TestCtrl(Controller):
         response.status_code = status
         return response
 
-
     def cancel(self, owner, repository, uuid=None):
         """ Cancel a test
 
@@ -520,7 +526,6 @@ class TestCtrl(Controller):
         test = RepoTest.objects.get_or_404(repository=repo, uuid__iexact=uuid)
         test.update(status=False, total=0, tested=0)
         return jsonify(cancelled=True)
-
 
     def link(self, owner, repository, callback_url):
         """ Set Github to start or stop pinging the current repository
@@ -696,15 +701,15 @@ class TestCtrl(Controller):
         """
         repository = Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
         history = {
-            "username" : username,
-            "reponame" : reponame,
-            "logs" : [
+            "username": username,
+            "reponame": reponame,
+            "logs": [
                 {
-                    "run_at" : event.run_at,
-                    "uuid" : event.uuid,
-                    "coverage" : event.coverage,
-                    "ref" : event.branch,
-                    "slug" : event.branch_slug
+                    "run_at": event.run_at,
+                    "uuid": event.uuid,
+                    "coverage": event.coverage,
+                    "ref": event.branch,
+                    "slug": event.branch_slug
                 }
                 for event in RepoTest.objects.exclude("units")(repository=repository)
             ]

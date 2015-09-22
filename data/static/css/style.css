@@ -76,7 +76,7 @@ ol.logs {
     padding:15px;
 
     font-family: monospace;
-    font-size:0.8em;
+    font-size:1em;
     max-height:400px;
     overflow: auto;
 }
@@ -187,6 +187,9 @@ img.user-20 {
 .filelist .hookbadge {
     height:15px;
     line-height:15px;
+}
+.filelist a {
+    color:black;
 }
 .card > .left.success, .hookbadge.success {
   background-color: #5cb85c;

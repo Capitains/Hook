@@ -16,6 +16,26 @@ var format_log = function(string) {
     }
     return string
 }
+var logs = function(target, url) {
+    var child = target.children();
+    if(child.length == 0) {
+        $.get(url, function(data) {
+            var ol = $("<ol />", {"class": "logs"}),
+                li = function(data) {
+                var li = $("<li />");
+                li.html(format_log(data));
+                return li;
+            };
+
+            for ( var i = 0, l = data.logs.length; i < l; i++ ) {
+                ol.append(li(data.logs[i]));
+            }
+            target.append(ol);
+        });
+    } else {
+        target.toggle();
+    }
+}
 var startswith = function(string, start) {
     return string.lastIndexOf(start, 0) === 0
 }
@@ -27,7 +47,7 @@ var reload = function(element) {
         for (var i = 0; i < data.logs.length; i++) {
             target.append($("<li>" + format_log(data.logs[i]) + "</li>"));
         };
-        if (data.status_string != "failed" && data.status_string != "error" && data.status_string != "success") || data.logs_count !== data.end + 1) {
+        if ((data.status_string != "failed" && data.status_string != "error" && data.status_string != "success") || (data.logs_count !== data.end + 1)) {
             setTimeout(function() { reload(element); }, 10000);
         }
     }).error(function() {

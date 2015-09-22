@@ -172,9 +172,19 @@ class DocTest(db.EmbeddedDocument):
     text_logs = db.EmbeddedDocumentListField(DocLogs)
 
     meta = {
-        'ordering': ['at']
+        'ordering': ['+path']
     }
 
+    @staticmethod
+    def report(document):
+        return {
+            "path": document.path,
+            "time": document.at,
+            "status": document.status,
+            "coverage": document.coverage,
+            "units": {doc_test.title: doc_test.status for doc_test in document.logs},
+            "logs": [log.text for log in document.text_logs]
+        }
 
 class RepoTest(db.Document):
     """ Complete repository status """
@@ -233,6 +243,15 @@ class RepoTest(db.Document):
         units = [unit.status for unit in  self.units if "__cts__.xml" not in unit.path]
         return units.count(True), len(units)
 
+    def units_status(self):
+        """ Return a json representation of each units status
+        :return: List
+        :rtype: [(str, str)]
+        """
+        return [
+            (unit.path, unit.status) for unit in self.units
+        ]
+
     @staticmethod
     def report(repository, slug=None, uuid=None, repo_test=None):
         """ Return the logs and status when the test is finished
@@ -256,22 +275,17 @@ class RepoTest(db.Document):
 
 
         for document in repo_test.units:
-            units[document.path] = {
-                "status": document.status,
-                "coverage": document.coverage,
-                "units": {doc_test.title:doc_test.status for doc_test in document.logs}
-            }
+            units[document.path] = DocTest.report(document)
 
         answer = {
             "progress": {"files": repo_test.total, "tested": repo_test.tested},
-            "logs": [log.text for unit in repo_test.units for log in unit.text_logs],
             "report": {
                 "coverage": repo_test.coverage,
                 "status": repo_test.status,
                 "units": units
             },
             "status": repo_test.status,
-            "error" : repo_test.error_message
+            "error": repo_test.error_message
         }
 
         return answer
