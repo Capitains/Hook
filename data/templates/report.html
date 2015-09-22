@@ -44,6 +44,18 @@
             </ol>
           </section>
         </div>
+        <div class="row">
+          <section class="col-md-12">
+            <div class="filelist dl-horizontal">
+              {% for unit in test.units %}
+                <div  class="row">
+                    <div class="col-md-10">{{unit.path}}</div>
+                    <div  class="col-md-2"><div class="hookbadge {{unit.status|success_class}}">{{unit.status|success_class}}</div></div>
+                </div>
+              {% endfor %}
+            </div>
+          </section>
+        </div>
       </article>
 {% endblock %}
 

@@ -183,7 +183,8 @@ class TestCtrl(Controller):
         # PAGINATION !!!
         tests = RepoTest.objects(
             repository=repository
-        )
+        ).exclude("units.logs").exclude("units.text_logs")
+
         for test in tests:
             test.branch = test.branch.split("/")[-1]
 
@@ -338,7 +339,7 @@ class TestCtrl(Controller):
             timeout=3600,
             result_ttl=86400
         )
-        test.update(hash=job.get_id(), status="inqueue")
+        test.update(hash=job.get_id(), status="queued")
 
     def handle_hooktest_log(self, request):
         """ Handle data received from Redis server commands
@@ -354,7 +355,9 @@ class TestCtrl(Controller):
 
         # Now we get the repo
         uuid = request.headers.get("HookTest-UUID")
-        test = RepoTest.objects.get_or_404(uuid=uuid)
+        test = RepoTest.objects(uuid=uuid).exclude("units.logs").exclude("units.text_logs").first()
+        if not test:
+            return 404
         data = json.loads(request.data.decode('utf-8'))
 
         # If the test just started
@@ -644,29 +647,22 @@ class TestCtrl(Controller):
 
         return template, {"score": score}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
 
-    def repo(self, **kwargs):
+    def repo(self, owner, name, branch=None, uuid=None):
         """ Helper to find repo
         :param kwargs:
         :return:
         """
-        kwargs = {key+"__iexact":value for key, value in kwargs.items() if value is not None}
-        repo_args = {key:value for key, value in kwargs.items() if key not in ["uuid__iexact", "branch__iexact"]}
+        repo = Repository.objects.get_or_404(owner__iexact=owner, name__iexact=name)
+        test_args = {
+            "repository": repo
+        }
+        if branch:
+            test_args["branch__iexact"] = branch
 
-        repo = Repository.objects.get_or_404(**repo_args)
+        if uuid:
+            test_args["uuid__iexact"] = uuid
 
-        test_args = {"repository": repo}
-
-        if "branch" in kwargs:
-            test_args["branch__iexact"] = kwargs["branch__iexact"]
-
-        if "uuid__iexact" in kwargs:
-            test_args["uuid__iexact"] = kwargs["uuid__iexact"]
-            test = RepoTest.objects(**test_args)
-        else:
-            test = RepoTest.objects(**test_args)
-
-        if len(test) == 0:
-            return None
+        test = RepoTest.objects(**test_args).exclude("units.logs").exclude("units.text_logs")
 
         return test.first()
 
@@ -689,7 +685,7 @@ class TestCtrl(Controller):
                     "ref" : event.branch,
                     "slug" : event.branch_slug
                 }
-                for event in RepoTest.objects(repository=repository)
+                for event in RepoTest.objects.exclude("units")(repository=repository)
             ]
         }
         return jsonify(**history)

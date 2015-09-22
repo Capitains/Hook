@@ -57,5 +57,5 @@ def _success_class(status):
     if status is True:
         string = "success"
     elif status is False:
-        string = "failure"
+        string = "failed"
     return string

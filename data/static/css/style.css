@@ -170,7 +170,7 @@ img.user-20 {
   color:#fff;
   font-size: 1.2em;
 }
-td > .hookbadge {
+.hookbadge {
   font-family: DejaVu Sans,Verdana,Geneva,sans-serif;
   font-size:11px;
   height:20px;
@@ -180,17 +180,24 @@ td > .hookbadge {
   margin:auto auto;
   text-align:center;
  }
-
-.card > .left.success, td > .hookbadge.success {
+.filelist {
+    font-size:9px;
+    font-family:  Consolas, Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, serif;
+}
+.filelist .hookbadge {
+    height:15px;
+    line-height:15px;
+}
+.card > .left.success, .hookbadge.success {
   background-color: #5cb85c;
 }
-.card > .left.failed, td > .hookbadge.failed {
+.card > .left.failed, .hookbadge.failed {
   background-color: #d9534f;
 }
-.card > .left.error, td > .hookbadge.error {
+.card > .left.error, .hookbadge.error {
     background-color:#FF0000;
 }
-.card > .left.pending, td > .hookbadge.pending {
+.card > .left.pending, .hookbadge.pending {
     background-color:#dfb317;
 }
 
