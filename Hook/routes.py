@@ -111,6 +111,7 @@ def api_test_generate_route(username, reponame):
     """
     return testctrl.generate(username, reponame, callback_url=url_for("api_hooktest_log", _external=True))
 
+
 @app.route('/api/rest/v1.0/code/<username>/<reponame>', methods=["GET", "DELETE"])
 def api_repo_history(username, reponame):
     """ Return json history of previous tests
@@ -128,3 +129,15 @@ def api_repo_history(username, reponame):
         )
     else:
         return testctrl.history(username, reponame)
+
+
+@app.route('/api/rest/v1.0/code/<username>/<reponame>/unit', methods=["GET"])
+def api_repo_unit_history(username, reponame):
+    """ Return json representation of one unit test
+    """
+    return testctrl.repo_report_unit(
+        username,
+        reponame,
+        uuid=request.args.get("uuid"),
+        unit=request.args.get("unit", "all")
+    )

@@ -156,9 +156,11 @@ class DocUnitStatus(db.EmbeddedDocument):
     title = db.StringField(max_length=255, required=True)
     status = db.BooleanField(required=False)
 
+
 class DocLogs(db.EmbeddedDocument):
     """ Verbose result for unit test """
     text = db.StringField(required=True)
+
 
 class DocTest(db.EmbeddedDocument):
     """ Complete Document level status"""

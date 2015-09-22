@@ -37,11 +37,12 @@
         {% endif %}
         <div class="row">
           <section class="col-md-12">
-            <ol class="logs" id="log-container">
-              {% for log in report["logs"] %}
-                <li>{{log|format_log}}</li>
+            <div class="row">
+              {% for unit in test.units %}
+                <div class="col-md-9">{{unit.path}}</div>
+                <div class="col-md-3">{{unit.status}}</div>
               {% endfor %}
-            </ol>
+            </div>
           </section>
         </div>
         <div class="row">
