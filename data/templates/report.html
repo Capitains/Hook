@@ -37,20 +37,11 @@
         {% endif %}
         <div class="row">
           <section class="col-md-12">
-            <ol class="logs" id="log-container">
-              {% for log in report["logs"] %}
-                <li>{{log|format_log}}</li>
-              {% endfor %}
-            </ol>
-          </section>
-        </div>
-        <div class="row">
-          <section class="col-md-12">
             <div class="filelist dl-horizontal">
-              {% for unit in test.units %}
+              {% for unit in test.units|sort(attribute='path') %}
                 <div  class="row">
-                    <div class="col-md-10">{{unit.path}}</div>
-                    <div  class="col-md-2"><div class="hookbadge {{unit.status|success_class}}">{{unit.status|success_class}}</div></div>
+                    <div class="col-md-10"><a href="{{url_for("api_repo_unit_history", reponame=repository.name, username=repository.owner)}}?uuid={{test.uuid}}&unit={{unit.path}}">{{unit.path}}</a><div class="target"></div></div>
+                    <div class="col-md-2"><div class="hookbadge {{unit.status|success_class}}">{{unit.status|success_class}}</div></div>
                 </div>
               {% endfor %}
             </div>
@@ -62,13 +53,36 @@
 {% block script %}
 {% if not test.finished %}
 <input type="hidden" href="{{url_for('api_repo_history', username=repository.owner, reponame=repository.name)}}?uuid={{test.uuid}}" data-target="#log-container" id="informations-log"/>
-<script type="text/javascript">
-  $(document).ready(function() {
 
-    reload($("#informations-log"));
-
-  });
-</script>
-<script src="{{url_for('static', filename='js/format.log.js')}}"></script>
 {% endif %}
+<script src="{{url_for('static', filename='js/format.log.js')}}"></script>
+<script type="text/javascript">
+    $(document).ready(function() {
+
+    /*reload($("#informations-log"));
+    ,
+            url = "{{url_for("api_repo_unit_history", reponame=repository.name, username=repository.owner)}}";
+
+        $.get(that.attr("href"), function(data) {
+            for ( var i = 0, l = arr.length; i < l; i++ ) {
+                var row = $("<div />", {"class":"row"}),
+                    name = $("<div />", {"class":"col-md-10"}),
+                    a = $("a", {"href",
+                    badge=;
+                $(".filelist").append(
+
+                );
+            }
+        });
+    */
+
+        $(".filelist a").on("click", function(e) {
+            e.preventDefault();
+            var that = $(this),
+                target = that.parent().find(".target");
+
+            logs(target, that.attr("href"));
+        });
+    });
+</script>
 {% endblock %}
