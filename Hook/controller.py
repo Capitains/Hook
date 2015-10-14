@@ -267,7 +267,7 @@ class TestCtrl(Controller):
 
         sha = status[0]["sha"]
         ref = "master"
-        creator = status[0]["author"]["login"]
+        creator = status[0]["commit"]["author"]["name"]
         guid = str(uuid4())
         url = status[0]["html_url"]
 
