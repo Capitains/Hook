@@ -1,6 +1,9 @@
 from Hook.app import app
 from flask import Markup
 from Hook.utils import slugify
+import re
+
+verbose = re.compile("(>>>>>>[^>]+)")
 
 @app.template_filter('slugify')
 def _slugify(string):
@@ -25,14 +28,15 @@ def _format_log(string):
     if not string:
         return ""
     else:
+        print(verbose.findall(string))
         if string.startswith(">>> "):
             string = Markup("<u>{0}</u>".format(string.strip(">>> ")))
         elif string.startswith(">>>> "):
             string = Markup("<b>{0}</b>".format(string.strip(">>>> ")))
         elif string.startswith(">>>>> "):
             string = Markup("<i>{0}</i>".format(string.strip(">>>>> ")))
-        elif string.startswith(">>>>>> "):
-            string = Markup("<span class='verbose'>{0}</span>".format(string.strip(">>>>>> ")))
+        elif verbose.findall(string):
+            string = Markup("</li><li>".join(["<span class='verbose'>{0}</span>".format(found.strip(">>>>>> ")) for found in verbose.findall()]))
         elif string.startswith("[success]"):
             string = Markup("<span class='success'>{0}</span>".format(string.strip("[success]")))
         elif string.startswith("[failure]"):

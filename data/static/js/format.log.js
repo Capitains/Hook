@@ -1,3 +1,5 @@
+var re = /(>>>>>>[^>]+)/gm;
+
 var format_log = function(string) {
     if (!string) {
         return "";
@@ -7,12 +9,23 @@ var format_log = function(string) {
         return "<b>" + string.replace(">>>> ", "") + "</b>";
     } else if (startswith(string, ">>>>> ")) {
         return "<i>" + string.replace(">>>>> ", "") + "</i>";
-    } else if (startswith(string, ">>>>>> ")) {
-        return "<span class='verbose'>" + string.replace(">>>>>> ", "") + "</span>";
     } else if (startswith(string, "[success]")) {
         return "<span class='success'>" + string.replace("[success]", "") + "</span>";
     } else if (startswith(string, "[failure]")) {
         return "<span class='failure'>" + string.replace("[failure]", "") + "</span>";
+    } else {
+        var string2 = []
+        while ((m = re.exec(string)) !== null) {
+            string2.push("<span class='verbose'>" + m[0].replace(">>>>>> ", "") + "</span>");
+            if (m.index === re.lastIndex) {
+                re.lastIndex++;
+            }
+        }
+        if (string2.length === 1) {
+            return string2[0];
+        } else if (string2.length > 1) {
+            return string2.join("</li><li>");
+        }
     }
     return string
 }
