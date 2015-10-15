@@ -45,7 +45,7 @@ def repo_test_report(username, reponame, uuid):
 def api_test_payload():
     """ Handle GitHub payload
     """
-    return testctrl.hook_run(request, request.headers)
+    return testctrl.handle_payload(request, request.headers, callback_url=url_for("api_hooktest_log", _external=True))
 
 
 @app.route("/api/hooktest", methods=["POST"])

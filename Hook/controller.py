@@ -460,13 +460,13 @@ class TestCtrl(Controller):
         :param hub_signature: Signature sent by github
         :return:
         """
-        signature = 'sha1={0}'.format(hmac.new(self.signature, body, hashlib.sha1).hexdigest())
+        signature = 'sha1={0}'.format(hmac.new(bytes(self.signature, encoding="utf-8"), body, hashlib.sha1).hexdigest())
         if signature == hub_signature:
             return True
         else:
             return False
 
-    def handle_payload(self, request, headers):
+    def handle_payload(self, request, headers, callback_url):
         """ Handle a payload call from Github
 
         :param request:
@@ -503,15 +503,17 @@ class TestCtrl(Controller):
                 ref = payload["number"]
                 do = True
             if do:
-                status, message = self.generate(
+                response = self.generate(
                     username,
                     repository,
-                    ref,
-                    creator,
-                    sha,
-                    url,
-                    uuid=guid
+                    callback_url=callback_url,
+                    creator=creator,
+                    sha=sha,
+                    url=url,
+                    uuid=guid,
+                    ref=ref
                 )
+                return response
 
         response = jsonify(status=status, message=message)
         response.status_code = status
