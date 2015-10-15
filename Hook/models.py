@@ -91,7 +91,7 @@ class Repository(db.Document):
     name = db.StringField(max_length=200, required=True)
     tested = db.BooleanField(default=False)
     hook_id = db.IntField(default=None)
-    dtd = db.StringField(default="tei", max_length=3)
+    dtd = db.StringField(default="tei", max_length=20)
     master_pr = db.BooleanField(default=False)
     verbose = db.BooleanField(default=False)
     authors = db.ListField(db.ReferenceField(User))
