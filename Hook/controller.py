@@ -432,6 +432,9 @@ class TestCtrl(Controller):
             if len(update) > 0:
                 test.update(**update)
 
+        """
+        .. todo:: HERE, there should be the ping in case coverage is available
+        """
         return 200
 
     def check_hooktest_signature(self, body, hook_signature):
@@ -495,13 +498,14 @@ class TestCtrl(Controller):
                 sha = payload["head_commit"]["id"]
                 url = payload["compare"]
                 ref = payload["ref"]
-                do = True
+                pull_request = False
             elif event == "pull_request" and payload["action"] in ["reopened", "opened", "synchronize"]:
                 creator = payload["pull_request"]["user"]["login"]
                 url = payload["pull_request"]["url"]
                 sha = payload["pull_request"]["head"]["sha"]
                 ref = payload["number"]
                 do = True
+                pull_request = True
             if do:
                 response = self.generate(
                     username,
@@ -511,7 +515,8 @@ class TestCtrl(Controller):
                     sha=sha,
                     url=url,
                     uuid=guid,
-                    ref=ref
+                    ref=ref,
+                    check_branch=pull_request
                 )
                 return response
 

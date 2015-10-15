@@ -8,8 +8,8 @@
               <h1>
                   <a class="pull-left" href="{{url_for('repo', username=repository.owner, reponame=repository.name)}}"><span class="glyphicon glyphicon-home"></span></a>
                   {{repository.owner}}/{{repository.name}}
-                  <img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name, branch=test.branch_slug, uuid=test.uuid) }}" />
-                  <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name,branch=test.branch_slug, uuid=test.uuid) }}" />
+                  <img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name, branch=test.branch, uuid=test.uuid) }}" />
+                  <img alt="Coverage badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name, branch=test.branch, uuid=test.uuid) }}" />
               </h1>
               <div class="dl-horizontal card">
                 <div class="left {{test.status}}">
