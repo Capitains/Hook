@@ -401,31 +401,33 @@ class TestCtrl(Controller):
             )
         else:
             # If we have units, we have single logs to save
+            update = {}
             if "units" in data:
+                _units = []
                 for unit in data["units"]:
-                    unit_mongo = DocTest(
+                    _units.append(DocTest(
                         at=unit["at"],
                         path=unit["name"],
                         status=unit["status"],
                         coverage=unit["coverage"]
-                    )
+                    ))
 
                     for text in unit["logs"]:
-                        unit_mongo.text_logs.append(DocLogs(text=text))
+                        _units[-1].text_logs.append(DocLogs(text=text))
 
                     for test_name, test_status in unit["units"].items():
-                        unit_mongo.logs.append(DocUnitStatus(
+                        _units[-1].logs.append(DocUnitStatus(
                             title=test_name,
                             status=test_status
                         ))
-
-                    test.units.append(unit_mongo)
+                update["push_all__units"] = _units
 
             if "coverage" in data:
-                test.coverage = data["coverage"]
-                test.status = data["status"]
+                update["coverage"] = data["coverage"]
+                update["status"] = data["status"]
 
-            test.save()
+            if len(update) > 0:
+                test.update(**update)
 
         return 200
 
