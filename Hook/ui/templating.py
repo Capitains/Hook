@@ -78,3 +78,7 @@ def _success_class(status):
     elif status is False:
         string = "failed"
     return string
+
+@app.template_filter("ctsized")
+def _ctsized(cts_tuple):
+    return "{0}/{1}".format(*cts_tuple)

@@ -101,7 +101,6 @@
                           <th>Status</th>
                           <th>Coverage</th>
                           <th>Total Files</th>
-                          <th>Files tested</th>
                           <th>Logs</th>
                       </tr>
                   </thead>
@@ -112,7 +111,7 @@
                               <td>{{test.run_at}}</td>
                               <td>{{test.branch|nice_ref(test.sha)}}</td>
                               <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
-                              <td colspan="4">
+                              <td colspan="3">
                                 <div class="progress">
                                   <div class="progress-bar" role="progressbar" aria-valuenow="{{test.percent}}" aria-valuemin="0" aria-valuemax="100" style="width: {{test.percent}}%;">
                                   {{test.percent}}%
@@ -134,9 +133,8 @@
                               <td>{{test.branch|nice_ref(test.sha)}}</td>
                               <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
                               <td><div class="hookbadge {{test.status}}">{{test.status}}</div></td>
-                              <td>{{test.coverage}}</td>
+                              <td>{{test.coverage|round(2)}}%</td>
                               <td>{{test.total}}</td>
-                              <td>{{test.tested}}</td>
                               <td><a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
                           </tr>
                       {% endfor %}

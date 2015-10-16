@@ -345,6 +345,7 @@ class TestCtrl(Controller):
         )
 
         self.dispatch(test, callback_url)
+        self.comment(test)
 
         return jsonify(status="success", msg="Test launched", uuid=uuid)
 
@@ -436,9 +437,9 @@ class TestCtrl(Controller):
             if len(update) > 0:
                 test.update(**update)
 
-        """
-        .. todo:: HERE, there should be the ping in case coverage is available
-        """
+        if "status" in data and data["status"] in ["success", "error", "failed"]:
+            test.reload()
+            self.comment(test)
         return 200
 
     def check_hooktest_signature(self, body, hook_signature):
@@ -732,3 +733,40 @@ class TestCtrl(Controller):
             ]
         }
         return jsonify(**history)
+
+    def comment(self, test):
+        """ Takes care of sending information to github API through the comment / status API
+
+        :param test: The test currently running or finished
+        :return:
+        """
+        repo = test.repository
+        uri = "repos/{owner}/{repo}/statuses/{sha}".format(owner=repo.owner, repo=repo.name, sha=test.sha)
+        if test.status == "error":
+            state = "error"
+            sentence = "Test cancelled or ran into an error"
+        elif test.status == "success":
+            state = "success"
+            sentence = "Full repository is cts compliant"
+        elif test.status == "failed":
+            state = "failure"
+            sentence = "{0:.2f}% of unit tests passed".format(test.coverage)
+        else:
+            state = "pending"
+            sentence = "Currently testing..."
+
+        data = {
+          "state": state,
+          "target_url": self.domain+"/repo/{username}/{reponame}/{uuid}".format(username=repo.owner, reponame=repo.name, uuid=test.uuid),
+          "description": sentence,
+          "context": "continuous-integration/capitains-hook"
+        }
+
+        params = {}
+        if not hasattr(self.g, "user"):
+            user = repo.authors[0]
+            access_token = user.github_access_token
+            params = {"access_token": access_token}
+
+        print(uri, data, params)
+        self.api.post(uri, data=data, params=params)
