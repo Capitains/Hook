@@ -110,7 +110,7 @@
 
                           <tr class="warning">
                               <td>{{test.run_at}}</td>
-                              <td>{{test.branch}}</td>
+                              <td>{{test.branch|nice_ref(test.sha)}}</td>
                               <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
                               <td colspan="4">
                                 <div class="progress">
@@ -131,7 +131,7 @@
 
                           <tr>
                               <td>{{test.run_at}}</td>
-                              <td>{{test.branch}}</td>
+                              <td>{{test.branch|nice_ref(test.sha)}}</td>
                               <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
                               <td><div class="hookbadge {{test.status}}">{{test.status}}</div></td>
                               <td>{{test.coverage}}</td>

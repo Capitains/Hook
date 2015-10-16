@@ -8,7 +8,7 @@ from Hook.utils import slugify
 __author__ = 'Thibault Clerice'
 
 
-pr_finder = re.compile("PR #([0-9]+)")
+pr_finder = re.compile("pull\/([0-9]+)\/head")
 
 
 class User(db.Document):

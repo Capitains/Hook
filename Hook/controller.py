@@ -10,7 +10,7 @@ from rq.job import Job, JobStatus
 from redis import Redis
 
 from HookTest.test import cmd
-from Hook.models import User, Repository, RepoTest, DocLogs, DocTest, DocUnitStatus
+from Hook.models import User, Repository, RepoTest, DocLogs, DocTest, DocUnitStatus, pr_finder
 
 
 class Controller(object):
@@ -186,8 +186,6 @@ class TestCtrl(Controller):
         ).exclude(
             "units"
         )
-        for test in tests:
-            test.branch = test.branch.split("/")[-1]
 
         done = [test for test in tests if test.finished]
         running = [test for test in tests if test.finished == False]
@@ -294,7 +292,7 @@ class TestCtrl(Controller):
             return "error", "No commits available", 404
 
         sha = status[0]["sha"]
-        ref = "master"
+        ref = "refs/heads/master"
         if "author" in status[0]:
             creator = status[0]["author"]["login"]
         else:
@@ -304,7 +302,7 @@ class TestCtrl(Controller):
 
         return ref, creator, sha, url, guid
 
-    def generate(self, username, reponame, callback_url=None, ref=None, creator=None, sha=None, url=None, uuid=None):
+    def generate(self, username, reponame, callback_url=None, ref=None, creator=None, sha=None, url=None, uuid=None, check_branch=False):
         """ Generate a test on the machine
 
         :param username: Name of the user
@@ -318,9 +316,14 @@ class TestCtrl(Controller):
         :param sha: SHA of the commit
         :param url: URL of the resource
         :param uuid: UUID to use
+        :param check_branch: If set to True, should check against repo.master_pr
         """
         repo = Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
-        status = 200
+        if check_branch == True and repo.master_pr == True:
+            print(ref)
+            if not pr_finder.match(ref) and not ref.endswith("master"):
+                response = jsonify(status="ignore", message="Test ignored because this is not a pull request nor a push to master")
+                return response
 
         if creator is None:  # sha and url should be None
             informations = self.generate_informations(repo)
@@ -365,7 +368,8 @@ class TestCtrl(Controller):
                 "uuid" : test.uuid,
                 "workers": self.workers,
                 "secret": self.hooktest_secret,
-                "scheme": test.scheme
+                "scheme": test.scheme,
+                "branch": test.branch
             },
             timeout=3600,
             result_ttl=86400
@@ -476,7 +480,7 @@ class TestCtrl(Controller):
         :param headers:
         :return:
         """
-        status, message, code = "error", "Webhook query is not handled", 300
+        status, message, code = "error", "Webhook query is not handled", 200
         creator, sha, ref, url, do = None, None, None, None, None
 
         signature = headers.get("X-Hub-Signature")
@@ -489,7 +493,7 @@ class TestCtrl(Controller):
             return response
 
         payload = request.get_json(force=True)
-        guid = headers.get("X-GitHub-Delivery")
+        #  guid = headers.get("X-GitHub-Delivery")
         event = headers.get("X-GitHub-Event")
         username, repository = tuple(payload["repository"]["full_name"].split("/"))
         if event in ["push", "pull_request"]:
@@ -499,11 +503,12 @@ class TestCtrl(Controller):
                 url = payload["compare"]
                 ref = payload["ref"]
                 pull_request = False
+                do = True
             elif event == "pull_request" and payload["action"] in ["reopened", "opened", "synchronize"]:
                 creator = payload["pull_request"]["user"]["login"]
-                url = payload["pull_request"]["url"]
+                url = payload["pull_request"]["html_url"]
                 sha = payload["pull_request"]["head"]["sha"]
-                ref = payload["number"]
+                ref = "pull/{0}/head".format(payload["number"])
                 do = True
                 pull_request = True
             if do:
@@ -514,14 +519,14 @@ class TestCtrl(Controller):
                     creator=creator,
                     sha=sha,
                     url=url,
-                    uuid=guid,
                     ref=ref,
+                    uuid=str(uuid4()),
                     check_branch=pull_request
                 )
                 return response
 
         response = jsonify(status=status, message=message)
-        response.status_code = status
+        response.status_code = code
         return response
 
     def cancel(self, owner, repository, uuid=None):

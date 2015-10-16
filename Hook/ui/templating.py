@@ -4,6 +4,21 @@ from Hook.utils import slugify
 import re
 
 verbose = re.compile("(>>>>>>[^>]+)")
+pr_finder = re.compile("pull\/([0-9]+)\/head")
+
+
+@app.template_filter("nice_ref")
+def _nice_ref(branch, commit):
+    if pr_finder.match(branch):
+        return "PR #{0}".format(branch.strip("pull/").strip("/head"))
+    return commit[0:8]
+
+@app.template_filter("nice_branch")
+def _nice_branch(branch):
+    if pr_finder.match(branch):
+        return "PR #{0}".format(branch.strip("pull/").strip("/head"))
+    else:
+        return branch.split("/")[-1]
 
 @app.template_filter('slugify')
 def _slugify(string):
