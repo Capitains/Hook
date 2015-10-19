@@ -23,11 +23,9 @@ testctrl = TestCtrl(
     db=db,
     g=g,
     session=session,
-    redis=app.config["REDIS_URL"],
+    remote=app.config["HOOKTEST_REMOTE"],
     signature=app.config["GITHUB_HOOK_SECRET"],
-    hooktest_path=app.config["HOOKTEST_PATH"],
     hooktest_secret=app.config["HOOKTEST_SECRET"],
-    workers=app.config["HOOKTEST_WORKERS"],
     domain=app.config["DOMAIN"]
 )
 

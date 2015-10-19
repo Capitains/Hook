@@ -2,14 +2,10 @@ import math
 import hmac
 import hashlib
 import json
+import requests
 from uuid import uuid4
 
 from flask import redirect, jsonify
-from rq import Queue
-from rq.job import Job, JobStatus
-from redis import Redis
-
-from HookTest.test import cmd
 from Hook.models import User, Repository, RepoTest, DocLogs, DocTest, DocUnitStatus, pr_finder
 
 
@@ -155,13 +151,11 @@ class TestCtrl(Controller):
                 return elements[start:], start, length - 1
 
 
-    def __init__(self, signature, redis, hooktest_path, hooktest_secret, workers, domain, **kwargs):
+    def __init__(self, signature, remote, hooktest_secret, domain, **kwargs):
         super(TestCtrl, self).__init__(**kwargs)
         self.signature = signature
-        self.redis = redis
-        self.hooktest_path = hooktest_path
+        self.remote = remote
         self.domain = domain
-        self.workers = workers
         self.hooktest_secret = hooktest_secret
 
     def read_repo(self, owner, repository, request):
@@ -302,7 +296,7 @@ class TestCtrl(Controller):
 
         return ref, creator, sha, url, guid
 
-    def generate(self, username, reponame, callback_url=None, ref=None, creator=None, sha=None, url=None, uuid=None, check_branch=False):
+    def generate(self, username, reponame, callback_url=None, ref=None, creator=None, sha=None, url=None, uuid=None, check_branch=False, check_user=True):
         """ Generate a test on the machine
 
         :param username: Name of the user
@@ -319,8 +313,13 @@ class TestCtrl(Controller):
         :param check_branch: If set to True, should check against repo.master_pr
         """
         repo = Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
+
+        if check_user:
+            if hasattr(self.g, "user") and not repo.isWritable(self.g.user):
+                resp = jsonify(status="error", message="You are not an owner of the repository", uuid=None)
+                return resp
+
         if check_branch == True and repo.master_pr == True:
-            print(ref)
             if not pr_finder.match(ref) and not ref.endswith("master"):
                 response = jsonify(status="ignore", message="Test ignored because this is not a pull request nor a push to master")
                 return response
@@ -344,10 +343,10 @@ class TestCtrl(Controller):
             link=url
         )
 
-        self.dispatch(test, callback_url)
+        status, message = self.dispatch(test, callback_url)
         self.comment(test)
 
-        return jsonify(status="success", msg="Test launched", uuid=uuid)
+        return jsonify(status=status, message=message, uuid=uuid)
 
     def dispatch(self, test, callback_url):
         """ Dispatch a test to the redis queue
@@ -356,26 +355,24 @@ class TestCtrl(Controller):
         :param callback_url: URL to send log to
         """
 
-        redis_conn = Redis(self.redis)
-        q = Queue(connection=redis_conn)
-        job = q.enqueue_call(
-            func=cmd,
-            kwargs={
-                "path": self.hooktest_path,
-                "repository": test.repository.full_name,
-                "ping": callback_url,
-                "verbose": test.verbose,
-                "console": False,
-                "uuid" : test.uuid,
-                "workers": self.workers,
-                "secret": self.hooktest_secret,
-                "scheme": test.scheme,
-                "branch": test.branch
-            },
-            timeout=3600,
-            result_ttl=86400
-        )
-        test.update(hash=job.get_id(), status="queued")
+        params = {
+            "repository": test.repository.full_name,
+            "ping": callback_url,
+            "verbose": test.verbose,
+            "console": False,
+            "uuid" : test.uuid,
+            "scheme": test.scheme,
+            "branch": test.branch
+        }
+        params = bytes(json.dumps(params), encoding="utf-8")
+        response = requests.put(self.remote, data=params, headers={'content-type': 'application/json', "HookTest-Secure-X" : self.make_hooktest_signature(params)})
+        infos = response.json()
+
+        if infos["status"] == "queud":
+            test.update(hash=infos["job_id"], status="queued")
+            return "success", "Test launched"
+        else:
+            return infos["status"], "Error while dispatching test"
 
     def handle_hooktest_log(self, request):
         """ Handle data received from Redis server commands
@@ -442,6 +439,20 @@ class TestCtrl(Controller):
             self.comment(test)
         return 200
 
+    def make_hooktest_signature(self, body):
+        """ Check the signature sent by a request with the body
+
+        :param body: Raw body of the request
+        :return:
+        """
+        return '{0}'.format(
+            hmac.new(
+                bytes(self.hooktest_secret, encoding="utf-8"),
+                body,
+                hashlib.sha1
+            ).hexdigest()
+        )
+
     def check_hooktest_signature(self, body, hook_signature):
         """ Check the signature sent by a request with the body
 
@@ -449,14 +460,7 @@ class TestCtrl(Controller):
         :param hub_signature: Signature sent by github
         :return:
         """
-        signature = '{0}'.format(
-            hmac.new(
-                bytes(self.hooktest_secret, encoding="utf-8"),
-                body,
-                hashlib.sha1
-            ).hexdigest()
-        )
-        if signature == hook_signature:
+        if self.make_hooktest_signature(body) == hook_signature:
             return True
         else:
             return False
@@ -540,9 +544,16 @@ class TestCtrl(Controller):
         """
         if uuid is None:
             return "Unknown test", 404, {}
-        repo = Repository.objects.get_or_404(username__iexact=owner, name__iexact=repository)
+        repo = Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
+
+        if hasattr(self.g, "user") and not repo.isWritable(self.g.user):
+            resp = jsonify(cancelled=False, message="You are not an owner of the repository", uuid=None)
+            return resp
+
         test = RepoTest.objects.get_or_404(repository=repo, uuid__iexact=uuid)
-        test.update(status=False, total=0, tested=0)
+        test.update(status="error")
+
+        response = requests.delete("{0}/{1}".format(self.remote, uuid))
         return jsonify(cancelled=True)
 
     def link(self, owner, repository, callback_url):

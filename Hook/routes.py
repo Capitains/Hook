@@ -109,7 +109,7 @@ def api_test_generate_route(username, reponame):
 
     .:warning:. DISABLED
     """
-    return testctrl.generate(username, reponame, callback_url=url_for("api_hooktest_log", _external=True))
+    return testctrl.generate(username, reponame, callback_url=url_for("api_hooktest_log", _external=True), check_user=True)
 
 
 @app.route('/api/rest/v1.0/code/<username>/<reponame>', methods=["GET", "DELETE"])

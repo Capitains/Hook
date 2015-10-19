@@ -133,7 +133,7 @@
                               <td>{{test.branch|nice_ref(test.sha)}}</td>
                               <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
                               <td><div class="hookbadge {{test.status}}">{{test.status}}</div></td>
-                              <td>{{test.coverage|round(2)}}%</td>
+                              <td>{% if test.coverage %}{{test.coverage|round(2)}}%{% endif %}</td>
                               <td>{{test.total}}</td>
                               <td><a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
                           </tr>

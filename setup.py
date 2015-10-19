@@ -8,7 +8,7 @@ setup(
     url='http://github.com/Capitains/Hook',
     author='Thibault Clerice',
     author_email='leponteineptique@gmail.com',
-    license='MIT',
+    license='GNU GPL',
     packages=find_packages(),
     install_requires=[
         "Flask==0.10.1",
@@ -16,10 +16,7 @@ setup(
         "flask-login==0.2.11",
         "GitHub-Flask==2.1.1",
         "unicode-slugify==0.1.3",
-        "PyYAML==3.11",
-        "rq==0.5.5",
-        "redis>=2.7.0",
-        "HookTest==0.0.2"
+        "PyYAML==3.11"
     ],
     tests_require=[
         "Flask-Testing==0.4.2"
