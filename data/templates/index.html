@@ -4,7 +4,7 @@
 {% block body %}
 <h1>Welcome to Capitains Hook</h1>
 
-{% if current_user.is_authenticated() %}
+{% if current_user.is_authenticated == True %}
     <h2>Repository you might want to add <button class=" pull-right btn btn-default" type="button" id="refresh"><span class="fa fa-refresh"></span></button></h2>
 
     <div class="row">
@@ -58,7 +58,7 @@
         $("#refresh .fa-refresh").addClass("fa-spin");
         $.post("{{url_for('api_user_repositories')}}")
           .success(function(d) {
-            ui.loadRepos(d);
+            ui.loadRepos(d.repositories);
             $("#refresh .fa-refresh").removeClass("fa-spin");
           });
       });
