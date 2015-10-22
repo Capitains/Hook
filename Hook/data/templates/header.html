@@ -1,0 +1,27 @@
+<nav class="navbar navbar-inverse navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Hook</a>
+    </div>
+    <div id="navbar" class="collapse navbar-collapse">
+      <ul class="nav navbar-nav">
+        <li class="active"><a href="/">Home</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        {% if current_user.is_authenticated == True %}
+          <li><a class="navbar-brand" href="#" style="padding-top:5px; padding-bottom: 5px;"><img style=" border-radius: 20px;" src="https://avatars.githubusercontent.com/{{ current_user.login }}?s=40" /></a></li>
+          <li><a href="#">Hi {{ current_user.login }}!</a></li>
+          <li><a href="{{url_for('.logout')}}" alt="Sign off"><span class="glyphicon glyphicon-off"></span></a></li>
+        {% else %}
+          <li><a href="{{url_for('.login')}}">Sign-in</a></li>
+        {% endif %}
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div>
+</nav>

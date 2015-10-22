@@ -1,15 +1,14 @@
 from setuptools import setup, find_packages
 
-
 setup(
-    name='HookServer',
+    name='Hook',
     version="0.0.1",
     description='Hook Flask App for Github/CTS repositories',
     url='http://github.com/Capitains/Hook',
     author='Thibault Clerice',
     author_email='leponteineptique@gmail.com',
     license='GNU GPL',
-    packages=find_packages(),
+    packages=find_packages(exclude=("tests")),
     install_requires=[
         "Flask==0.10.1",
         "flask-mongoengine==0.7.1",
@@ -22,5 +21,6 @@ setup(
         "Flask-Testing==0.4.2"
     ],
     test_suite="tests",
+    include_package_data=True,
     zip_safe=False
 )

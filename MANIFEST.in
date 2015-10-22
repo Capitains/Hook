@@ -1,2 +1,7 @@
 recursive-include Hook *.py
-recursive-include HookTest *.py
+include Hook/data/static/favicon/*
+include Hook/data/static/css/*.css
+include Hook/data/static/images/*
+include Hook/data/static/js/*.js
+include Hook/data/templates/*.html
+include Hook/data/templates/svg/*.xml
