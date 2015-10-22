@@ -15,7 +15,8 @@ setup(
         "flask-login==0.2.11",
         "GitHub-Flask==2.1.1",
         "unicode-slugify==0.1.3",
-        "PyYAML==3.11"
+        "PyYAML==3.11",
+        "tornado==4.2.1"
     ],
     tests_require=[
         "Flask-Testing==0.4.2"
