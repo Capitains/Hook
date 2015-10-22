@@ -1,4 +1,4 @@
-from flask import Flask, Blueprint, url_for, request, render_template, g, Markup, session, redirect, jsonify
+from flask import Flask, Blueprint, url_for, request, render_template, g, Markup, session, redirect, jsonify, send_from_directory
 from flask.ext.mongoengine import MongoEngine
 from flask.ext.github import GitHub
 from flask.ext.login import LoginManager
@@ -18,58 +18,64 @@ from Hook.common import slugify
 class HookUI(object):
     ROUTES = [
         ('/', "r_index", ["GET"]),
-        ('/login/form', "r_login", ["GET"]),
+        ('/login', "r_login", ["GET"]),
         ('/logout', "r_logout", ["GET"]),
 
         ('/api/github/callback', "r_github_oauth", ["GET"]),
         ('/api/github/payload', "r_github_payload", ["GET"]),
-        ("/api/hooktest", "api_hooktest_endpoint", ["POST"]),
+        ("/api/hooktest", "r_api_hooktest_endpoint", ["POST"]),
 
         ('/repo/<owner>/<repository>', "r_repository", ["GET", "POST"]),
         ('/repo/<owner>/<repository>/<uuid>', "r_repository_test", ["GET"]),
 
         ("/api/rest/v1.0/user/repositories", "r_api_user_repositories", ["GET", "POST"]),
-        ("/api/rest/v1.0/user/repositories/<owner>/<name>", "r_api_user_repository_switch", ["PUT"]),
+        ("/api/rest/v1.0/user/repositories/<owner>/<repository>", "r_api_user_repository_switch", ["PUT"]),
 
-        ('/api/rest/v1.0/code/<owner>/<repository>/status.svg'"r_repo_badge_status", ["GET"]),
-        ('/api/rest/v1.0/code/<owner>/<repository>/cts.svg'"r_repo_cts_status", ["GET"]),
-        ('/api/rest/v1.0/code/<owner>/<repository>/coverage.svg'"r_repo_badge_coverage", ["GET"]),
-        ('/api/rest/v1.0/code/<owner>/<repository>/test'"r_api_test_generate_route", ["GET"]),
+        ('/api/rest/v1.0/code/<owner>/<repository>/status.svg', "r_repo_badge_status", ["GET"]),
+        ('/api/rest/v1.0/code/<owner>/<repository>/cts.svg', "r_repo_cts_status", ["GET"]),
+        ('/api/rest/v1.0/code/<owner>/<repository>/coverage.svg', "r_repo_badge_coverage", ["GET"]),
+        ('/api/rest/v1.0/code/<owner>/<repository>/test', "r_api_test_generate_route", ["GET"]),
         ('/api/rest/v1.0/code/<owner>/<repository>', "r_api_repo_history", ["GET", "DELETE"]),
-        ('/api/rest/v1.0/code/<owner>/<repository>/unit', "r_api_repo_unit_history", ["GET"])
+        ('/api/rest/v1.0/code/<owner>/<repository>/unit', "r_api_repo_unit_history", ["GET"]),
+
+        ("/favicon.ico", "r_favicon", ["GET"]),
+        ("/favicon/<icon>", "r_favicon_specific", ["GET"])
     ]
 
     FILTERS = [
-        "r_nice_ref",
-        "r_nice_branch",
-        'r_slugify',
-        'r_checked',
-        'r_btn',
-        'r_format_log',
-        'r_tei',
-        'r_epidoc',
-        'r_success_class',
-        "r_ctsized"
+        "f_nice_ref",
+        "f_nice_branch",
+        'f_slugify',
+        'f_checked',
+        'f_btn',
+        'f_format_log',
+        'f_tei',
+        'f_epidoc',
+        'f_success_class',
+        "f_ctsized"
     ]
 
     VERBOSE = re.compile("(>>>>>>[^>]+)")
     PR_FINDER = re.compile("pull\/([0-9]+)\/head")
 
     def __init__(self,
-         mongo=None, github=None, login=None,
+         prefix="", mongo=None, github=None, login=None,
          remote=None, github_secret=None, hooktest_secret=None,
          static_folder=None, template_folder=None, app=None, name=None
     ):
-        """
+        """ Initiate the class
 
-        :param mongo:
-        :param github:
-        :param login:
-        :param static_folder:
-        :param template_folder:
-        :param app:
-        :param name:
-        :return:
+        :param prefix: Prefix on which to install the extension
+        :param mongo: Mongo Database to use
+        :type mongo: MongoEngine
+        :param github: GitHub extension for doing requests
+        :type github: GitHub
+        :param login: Login extension
+        :type login: LoginManager
+        :param static_folder: New static folder
+        :param template_folder: New template folder
+        :param app: Application on which to register
+        :param name: Name to use for the blueprint
         """
         self.app = app
         self.name = name
@@ -82,6 +88,7 @@ class HookUI(object):
         self.remote = remote
         self.github_secret = github_secret
         self.hooktest_secret = hooktest_secret
+        self.prefix = prefix
 
         self.static_folder = static_folder
         if not self.static_folder:
@@ -90,6 +97,8 @@ class HookUI(object):
         self.template_folder = template_folder
         if not self.template_folder:
             self.template_folder = resource_filename("Hook", "data/templates")
+
+        self.m_User, self.m_Repository, self.m_RepoTest, self.m_DocLogs, self.m_DocTest, self.m_DocUnitStatus = None, None, None, None, None, None
 
         if self.name is None:
             self.name = __name__
@@ -104,6 +113,16 @@ class HookUI(object):
             self.g.user = self.m_User.objects.get(uuid=self.session['user_id'])
 
     def init_app(self, app):
+        """ Initiate the extension on the application
+
+        :param app: Flask Application
+        :return: Blueprint for HookUI registered in app
+        :rtype: Blueprint
+        """
+
+        if not self.app:
+            self.app = app
+
         if not self.db:
             self.db = MongoEngine(app)
         if not self.api:
@@ -116,7 +135,7 @@ class HookUI(object):
         if not self.github_secret:
           self.github_secret = app.config["HOOKUI_GITHUB_SECRET"]
         if not self.hooktest_secret:
-          self.hooktest_secret = app.configp["HOOKUI_HOOKTEST_SECRET"]
+          self.hooktest_secret = app.config["HOOKUI_HOOKTEST_SECRET"]
 
         # Register token getter for github
         self.api.access_token_getter(self.github_token_getter)
@@ -124,17 +143,51 @@ class HookUI(object):
         # Register the user loader for LoginManager
         self.login_manager.user_loader(self.login_manager_user_loader)
 
-        # Register the before request
-        self.blueprint.before_request(self.before_request)
+        self.init_blueprint()
 
         # Generate Instance models
         self.m_User, self.m_Repository, self.m_RepoTest, self.m_DocLogs, self.m_DocTest, self.m_DocUnitStatus = model_maker(self.db)
+
+        return self.blueprint
+
+    def init_blueprint(self):
+        """ Properly generates the blueprint, registering routes and filters and connecting the app and the blueprint
+
+        """
+        self.blueprint = Blueprint(
+            self.name,
+            self.name,
+            url_prefix=self.prefix,
+            template_folder=self.template_folder,
+            static_folder=self.static_folder,
+            static_url_path='/static/{0}'.format(self.name)
+        )
+
+        # Register routes
+        for url, name, methods in HookUI.ROUTES:
+            self.blueprint.add_url_rule(
+                url,
+                view_func=getattr(self, name),
+                endpoint=name[2:],
+                methods=methods
+            )
+        # Register
+
+        for _filter in HookUI.FILTERS:
+            self.app.jinja_env.filters[
+                _filter.replace("f_", "")
+            ] = getattr(self.__class__, _filter)
+
+        # Register the before request
+        self.blueprint.before_request(self.before_request)
+
+        self.app.register_blueprint(self.blueprint)
 
     def login_manager_user_loader(self, user_id):
         """ Load a user
 
         :param user_id: User id
-        :return:
+        :return: User or None
         """
         if hasattr(self.g, "user"):
             return self.g.user
@@ -143,7 +196,7 @@ class HookUI(object):
     def github_token_getter(self):
         """ Get the github token
 
-        :return: User github access token
+        :return: User github access token or None
         """
         if hasattr(self.g, "user"):
             if self.g.user is not None:
@@ -161,23 +214,23 @@ class HookUI(object):
         with self.app.app_context():
             return self.logout(url_for(".index"))
 
-    def r_github_oauth(self, access_token):
+    def r_github_oauth(self, *args, **kwargs):
         """ GitHub oauth route
         """
-        def func(self, access_token):
+        def func(access_token):
             with self.app.app_context():
                 next_uri = request.args.get('next') or url_for('.index')
                 return self.authorize(access_token, request, success=next_uri, error=url_for(".index"))
 
-        self.api.authorized_handler(func)(access_token)
+        authorize = self.api.authorized_handler(func)
+        return authorize(*args, **kwargs)
 
     def r_github_payload(self):
         """ GitHub payload route
         """
         return self.handle_payload(
             request,
-            request.headers,
-            callback_url=url_for(".api_hooktest_endpoint", _external=True)
+            request.headers
         )
 
     def r_index(self):
@@ -217,7 +270,6 @@ class HookUI(object):
 
     def r_api_user_repositories(self):
         """ Route fetching user repositories
-
         """
         return self.fetch(request.method)
 
@@ -293,8 +345,6 @@ class HookUI(object):
                 owner,
                 repository,
                 uuid=request.args.get("uuid"),
-                start=request.args.get("start", 0, type=int),
-                limit=request.args.get("limit", None, type=int),
                 json=True
             )
         else:
@@ -306,13 +356,18 @@ class HookUI(object):
         :param owner: Name of the user
         :param repository: Name of the repository
         """
-        return self.repo_report_unit(
+        return jsonify(self.repo_report_unit(
             owner,
             repository,
             uuid=request.args.get("uuid"),
             unit=request.args.get("unit", "all")
+        ))
 
-        )
+    def r_favicon(self):
+        return self.r_favicon_specific()
+
+    def r_favicon_specific(self, icon="favicon.ico"):
+        return send_from_directory(resource_filename("Hook", "data/static/favicon"), icon, mimetype='image/vnd.microsoft.icon')
 
     @staticmethod
     def f_nice_ref(branch, commit):
@@ -349,7 +404,7 @@ class HookUI(object):
         return slugify(string)
 
     @staticmethod
-    def f_checked_bool(boolean):
+    def f_checked(boolean):
         """ Check a checkbox if boolean is true
 
         :param boolean: Boolean
@@ -360,7 +415,7 @@ class HookUI(object):
         return ""
 
     @staticmethod
-    def f_btn_bool(boolean):
+    def f_btn(boolean):
         """ Return btn bs3 class depending on status
 
         :param boolean: Boolean
@@ -395,7 +450,7 @@ class HookUI(object):
             return string
 
     @staticmethod
-    def f_check_tei(string):
+    def f_tei(string):
         """ Check if value is "tei"
 
         :param string: String to check against "tei"
@@ -406,7 +461,7 @@ class HookUI(object):
         return ""
 
     @staticmethod
-    def f_check_epidoc(string):
+    def f_epidoc(string):
         """ Check if value is "epidoc"
 
         :param string: String to check against "epidoc"
@@ -447,11 +502,13 @@ class HookUI(object):
     def read_repo(self, owner, repository, request):
         """ Read the repository tests
 
-        :param owner:
-        :param repository:
-        :param request:
-        :return:
-        .. todo:: Pagination
+        :param owner: Name of the owner of the repository
+        :param repository: Name of the repository
+        :param request: Request information
+        :return: Repository informations with a list of tests (completed and running separated)
+
+        .. todo:: Pagination & Moving the post to the route
+
         """
 
         start, end = 0, 20
@@ -482,16 +539,14 @@ class HookUI(object):
             "running": running
         }
 
-    def repo_report(self, owner, repository, uuid, start=0, limit=None, json=False):
+    def repo_report(self, owner, repository, uuid, json=False):
         """ Generate data for repository report
 
-        :param owner:
-        :param repository:
-        :param uuid:
-        :param start:
-        :param limit:
-        :param json:
-        :return:
+        :param owner: Name of the owner of the repository
+        :param repository: Name of the repository
+        :param uuid: Unique Identifier of the test
+        :param json: Format in JSON
+        :return: Response containing the Report
         """
 
         repository = self.m_Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
@@ -511,11 +566,11 @@ class HookUI(object):
     def repo_report_unit(self, owner, repository, uuid, unit):
         """ Generate data for repository report for a single unit
 
-        :param owner:
-        :param repository:
-        :param uuid:
-        :param unit:
-        :return:
+        :param owner: Name of the owner of the repository
+        :param repository: Name of the repository
+        :param uuid: Unique Identifier of the test
+        :param unit: Identifier of the Unit
+        :return: Report for a specific unit
         """
 
         repository = self.m_Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
@@ -532,14 +587,14 @@ class HookUI(object):
                 return "", 404
             report = self.m_DocTest.report(test)
 
-        return jsonify(report)
+        return report
 
     def generate_informations(self, repository):
         """ Generate informations for a user generated build
 
         :param repository: Repository for which a test should be run
         :type repository: Repository
-        :return:
+        :return: Reference, Creator identifier, Commit Sha, URL on Github for the repository, GitHub UUID
         """
         status = self.api.get(
             "repos/{owner}/{name}/commits".format(owner=repository.owner, name=repository.name),
@@ -706,7 +761,7 @@ class HookUI(object):
         """ Check the signature sent by a request with the body
 
         :param body: Raw body of the request
-        :return:
+        :return: Signature for HookTest
         """
         return '{0}'.format(
             hmac.new(
@@ -721,7 +776,7 @@ class HookUI(object):
 
         :param body: Raw body of the request
         :param hook_signature: Signature sent by github
-        :return:
+        :return: Equality indicator
         """
         if self.make_hooktest_signature(body) == hook_signature:
             return True
@@ -733,7 +788,7 @@ class HookUI(object):
 
         :param body: Raw body of the request
         :param hub_signature: Signature sent by github
-        :return:
+        :return: Equality Indicator
         """
         signature = 'sha1={0}'.format(hmac.new(bytes(self.github_secret, encoding="utf-8"), body, hashlib.sha1).hexdigest())
         if signature == hub_signature:
@@ -744,9 +799,10 @@ class HookUI(object):
     def handle_payload(self, request, headers, callback_url):
         """ Handle a payload call from Github
 
-        :param request:
-        :param headers:
-        :return:
+        :param request: Request sent by github
+        :param headers: Header of the GitHub Request
+        :param callback_url: URL to use as a callback
+        :return: Response
         """
         status, message, code = "error", "Webhook query is not handled", 200
         creator, sha, ref, url, do = None, None, None, None, None
@@ -1034,12 +1090,13 @@ class HookUI(object):
             state = "pending"
             sentence = "Currently testinself.g..."
 
-        data = {
-          "state": state,
-          "target_url": self.domain+"/repo/{username}/{reponame}/{uuid}".format(username=repo.owner, reponame=repo.name, uuid=test.uuid),
-          "description": sentence,
-          "context": "continuous-integration/capitains-hook"
-        }
+        with self.app.app_context():
+            data = {
+              "state": state,
+              "target_url": url_for(".repository_test", owner=repo.owner, repository=repo.name, uuid=test.uuid, _external=True),
+              "description": sentence,
+              "context": "continuous-integration/capitains-hook"
+            }
 
         params = {}
         if not hasattr(self.g, "user"):
@@ -1047,7 +1104,6 @@ class HookUI(object):
             access_token = user.github_access_token
             params = {"access_token": access_token}
 
-        print(uri, data, params)
         self.api.post(uri, data=data, params=params)
 
 
@@ -1116,7 +1172,8 @@ class HookUI(object):
         else:
             user = user.first()
 
-        self.session['user_id'] = user.uuid
+        with self.app.app_context():
+            session['user_id'] = user.uuid
         return redirect(success)
 
     def fetch(self, method):
@@ -1161,16 +1218,28 @@ class HookUI(object):
 
     @property
     def session(self):
+        """ Flask Session
+        """
         with self.app.app_context():
             return session
 
     @property
     def g(self):
+        """ G Flask APP global information
+        """
         with self.app.app_context():
             return g
 
     @property
     def domain(self):
+        """ Domain URL of the current app
+        """
         with self.app.app_context():
             return url_for("", _external=True)
 
+    @property
+    def callback_url_hooktest_endpoint(self):
+        """ Callback URL use for retrieving data from the HookTest service
+        """
+        with self.app.app_context():
+            return url_for(".api_hooktest_endpoint", _external=True)

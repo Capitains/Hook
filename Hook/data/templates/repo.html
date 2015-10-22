@@ -12,9 +12,9 @@
               <div class="btn {{repository.tested|btn}} btn-xs"><span class="glyphicon glyphicon-off"></span></div>
               {% endif %}
               {% if tests|length > 0 %}
-              <img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name) }}" />
-              <img alt="Status badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name) }}" />
-              <img alt="CTS badge" src="{{ url_for('repo_cts_status', username=repository.owner, reponame=repository.name) }}" />
+              <img alt="Status badge" src="{{ url_for('.repo_badge_status', owner=repository.owner, repository=repository.name) }}" />
+              <img alt="Status badge" src="{{ url_for('.repo_badge_coverage', owner=repository.owner, repository=repository.name) }}" />
+              <img alt="CTS badge" src="{{ url_for('.repo_cts_status', owner=repository.owner, repository=repository.name) }}" />
               {% endif %}
           </h1>
       </header>
@@ -25,7 +25,7 @@
                 Settings
                 <div class="pull-right">
                   {% if repository.tested %}
-                  <a href="{{url_for('api_test_generate_route', username=repository.owner, reponame=repository.name)}}" class="btn btn-xs btn-info run">Run</a>
+                  <a href="{{url_for('.api_test_generate_route', owner=repository.owner, repository=repository.name)}}" class="btn btn-xs btn-info run">Run</a>
                   {% endif %}
                   <button id="state" class="btn {{repository.tested|btn}} btn-xs">
                     <span class="glyphicon glyphicon-off"></span>
@@ -38,7 +38,7 @@
                 Settings were updated
               </div>
               {% endif %}
-              <form method="POST" action="{{url_for('repo', username=repository.owner, reponame=repository.name)}}" class="form form-horizontal">
+              <form method="POST" action="{{url_for('.repository', owner=repository.owner, repository=repository.name)}}" class="form form-horizontal">
                 <div class="form-group">
                   <div class="col-sm-4">
                     Scheme
@@ -120,9 +120,9 @@
                               </td>
                               <td>
                                 {% if repository.isWritable(current_user) %}
-                                <a href="{{url_for('api_repo_history', username=repository.owner, reponame=repository.name)}}?uuid={{test.uuid}}" class="btn btn-xs btn-danger cancel-test" style="margin:1px;"><span class="glyphicon glyphicon-remove"></span></a>
+                                <a href="{{url_for('.api_repo_history', owner=repository.owner, repository=repository.name)}}?uuid={{test.uuid}}" class="btn btn-xs btn-danger cancel-test" style="margin:1px;"><span class="glyphicon glyphicon-remove"></span></a>
                                 {% endif %}
-                                <a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a>
+                                <a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('.repository_test', owner=repository.owner, repository=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a>
                               </td>
                           </tr>
                       {% endfor %}
@@ -135,7 +135,7 @@
                               <td><div class="hookbadge {{test.status}}">{{test.status}}</div></td>
                               <td>{% if test.coverage %}{{test.coverage|round(2)}}%{% endif %}</td>
                               <td>{{test.total}}</td>
-                              <td><a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('repo_test_report', username=repository.owner, reponame=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
+                              <td><a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('.repository_test', owner=repository.owner, repository=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
                           </tr>
                       {% endfor %}
                   </tbody>
@@ -187,7 +187,7 @@ $(document).ready(function() {
     on.hide();
 
     $.ajax({
-      url: '{{url_for("api_user_repository_switch", owner=repository.owner, name=repository.name)}}',
+      url: '{{url_for(".api_user_repository_switch", owner=repository.owner, repository=repository.name)}}',
       type: 'PUT',
       success: function(data) {
         spinner.removeClass("fa-spin").hide();
@@ -240,7 +240,7 @@ var svg = d3.select("#history").append("svg")
   .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-d3.json("{{ url_for('api_repo_history', username=repository.owner, reponame=repository.name) }}", function(error, data) {
+d3.json("{{ url_for('.api_repo_history', owner=repository.owner, repository=repository.name) }}", function(error, data) {
   if (error) throw error;
 
   data = data.logs;

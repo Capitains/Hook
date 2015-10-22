@@ -12,7 +12,7 @@
             <ul id="repo-list" class="list-group">
             {% for repo in current_user.repositories %}
                 <li class="list-group-item repo-menu-card" data-owner="{{repo.owner}}">
-                    <a href="{{url_for('repo', username=repo.owner, reponame=repo.name)}}">
+                    <a href="{{url_for('.repository', owner=repo.owner, repository=repo.name)}}">
                         <i class="fa fa-folder-open pull-left"></i>
                         <div class="owner">
                             {{repo.owner}}/
@@ -56,7 +56,7 @@
       $("#refresh").on("click", function(e) {
         e.preventDefault();
         $("#refresh .fa-refresh").addClass("fa-spin");
-        $.post("{{url_for('api_user_repositories')}}")
+        $.post("{{url_for('.api_user_repositories')}}")
           .success(function(d) {
             ui.loadRepos(d.repositories);
             $("#refresh .fa-refresh").removeClass("fa-spin");

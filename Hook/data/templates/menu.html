@@ -2,7 +2,7 @@
     {% if current_user.is_authenticated == True %}
         {% for repo in current_user.testable %}
             <li class="list-group-item repo-menu-card" data-owner="{{repo.owner}}">
-                <a href="{{url_for('repo', username=repo.owner, reponame=repo.name)}}">
+                <a href="{{url_for('.repository', owner=repo.owner, repository=repo.name)}}">
                     <i class="fa fa-folder-open pull-left"></i>
                     <div class="owner">
                         {{repo.owner}}/

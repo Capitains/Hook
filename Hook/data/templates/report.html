@@ -6,10 +6,10 @@
           <div class="row">
             <header class="col-md-12">
               <h1>
-                  <a class="pull-left" href="{{url_for('repo', username=repository.owner, reponame=repository.name)}}"><span class="glyphicon glyphicon-home"></span></a>
+                  <a class="pull-left" href="{{url_for('.repository', owner=repository.owner, repository=repository.name)}}"><span class="glyphicon glyphicon-home"></span></a>
                   {{repository.owner}}/{{repository.name}}
-                  <img alt="Status badge" src="{{ url_for('repo_badge_status', username=repository.owner, reponame=repository.name, branch=test.branch, uuid=test.uuid) }}" />
-                  <img alt="Coverage badge" src="{{ url_for('repo_badge_coverage', username=repository.owner, reponame=repository.name, branch=test.branch, uuid=test.uuid) }}" />
+                  <img alt="Status badge" src="{{ url_for('.repo_badge_status', owner=repository.owner, repository=repository.name, branch=test.branch, uuid=test.uuid) }}" />
+                  <img alt="Coverage badge" src="{{ url_for('.repo_badge_coverage', owner=repository.owner, repository=repository.name, branch=test.branch, uuid=test.uuid) }}" />
               </h1>
               <div class="dl-horizontal card">
                 <div class="left {{test.status}}">
@@ -40,7 +40,7 @@
             <div class="filelist dl-horizontal">
               {% for unit in test.units|sort(attribute='path') %}
                 <div  class="row">
-                    <div class="col-md-10"><a href="{{url_for("api_repo_unit_history", reponame=repository.name, username=repository.owner)}}?uuid={{test.uuid}}&unit={{unit.path}}">{{unit.path}}</a><div class="target"></div></div>
+                    <div class="col-md-10"><a href="{{url_for(".api_repo_unit_history", owner=repository.owner, repository=repository.name)}}?uuid={{test.uuid}}&unit={{unit.path}}">{{unit.path}}</a><div class="target"></div></div>
                     <div class="col-md-2"><div class="hookbadge {{unit.status|success_class}}">{{unit.status|success_class}}</div></div>
                 </div>
               {% endfor %}
@@ -52,16 +52,16 @@
 
 {% block script %}
 {% if not test.finished %}
-<input type="hidden" href="{{url_for('api_repo_history', username=repository.owner, reponame=repository.name)}}?uuid={{test.uuid}}" data-target="#log-container" id="informations-log"/>
+<input type="hidden" href="{{url_for('.api_repo_history', owner=repository.owner, repository=repository.name)}}?uuid={{test.uuid}}" data-target="#log-container" id="informations-log"/>
 
 {% endif %}
-<script src="{{url_for('static', filename='js/format.log.js')}}"></script>
+<script src="{{url_for('.static', filename='js/format.log.js')}}"></script>
 <script type="text/javascript">
     $(document).ready(function() {
 
     /*reload($("#informations-log"));
     ,
-            url = "{{url_for("api_repo_unit_history", reponame=repository.name, username=repository.owner)}}";
+            url = "{{url_for(".api_repo_unit_history", owner=repository.name, repository=repository.owner)}}";
 
         $.get(that.attr("href"), function(data) {
             for ( var i = 0, l = arr.length; i < l; i++ ) {

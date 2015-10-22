@@ -365,4 +365,4 @@ def model_maker(db):
 
             return True
 
-    return User, Repository, DocUnitStatus, DocLogs, DocTest, RepoTest
+    return User, Repository, RepoTest, DocLogs, DocTest, DocUnitStatus

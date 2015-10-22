@@ -1,3 +1,3 @@
-import Hook.app
+from Hook.cmd import run
 
-Hook.app.app.run()
+run(config_file="./config.yaml", debug=True)
