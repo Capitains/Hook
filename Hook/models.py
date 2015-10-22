@@ -61,7 +61,7 @@ def model_maker(db):
         def switch(self, owner, name, callback):
             return Repository.switch(owner, name, self, callback)
 
-        def repository(self, owner, name):
+        def repository(self, owner, name, author):
             return Repository.objects(authors__in=[self], owner__iexact=owner, name__iexact=name)
 
         def addto(self, owner, name):
@@ -76,8 +76,7 @@ def model_maker(db):
             :return: New or Updated repository
             :rtype: Repository
             """
-            repo_db = self.repository(owner=owner, name=name)
-
+            repo_db = Repository.objects(owner__iexact=owner, name__iexact=name)
             if len(repo_db) > 0:
                 repo_db = repo_db.first()
                 repo_db.update(push__authors=self)

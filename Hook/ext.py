@@ -11,6 +11,7 @@ import hashlib
 import json
 import requests
 from uuid import uuid4
+from time import time
 
 from Hook.models import model_maker
 from Hook.common import slugify
@@ -22,7 +23,7 @@ class HookUI(object):
         ('/logout', "r_logout", ["GET"]),
 
         ('/api/github/callback', "r_github_oauth", ["GET"]),
-        ('/api/github/payload', "r_github_payload", ["GET"]),
+        ('/api/github/payload', "r_github_payload", ["GET", "POST"]),
         ("/api/hooktest", "r_api_hooktest_endpoint", ["POST"]),
 
         ('/repo/<owner>/<repository>', "r_repository", ["GET", "POST"]),
@@ -77,6 +78,8 @@ class HookUI(object):
         :param app: Application on which to register
         :param name: Name to use for the blueprint
         """
+        self.__g = None
+
         self.app = app
         self.name = name
         self.blueprint = None
@@ -110,7 +113,8 @@ class HookUI(object):
         """ Before request function for the Blueprint
         """
         if 'user_id' in self.session:
-            self.g.user = self.m_User.objects.get(uuid=self.session['user_id'])
+            g.user = self.m_User.objects.get(uuid=self.session['user_id'])
+
 
     def init_app(self, app):
         """ Initiate the extension on the application
@@ -189,8 +193,8 @@ class HookUI(object):
         :param user_id: User id
         :return: User or None
         """
-        if hasattr(self.g, "user"):
-            return self.g.user
+        if hasattr(g, "user"):
+            return g.user
         return None
 
     def github_token_getter(self):
@@ -198,29 +202,26 @@ class HookUI(object):
 
         :return: User github access token or None
         """
-        if hasattr(self.g, "user"):
-            if self.g.user is not None:
-                return self.g.user.github_access_token
+        if hasattr(g, "user"):
+            if g.user is not None:
+                return g.user.github_access_token
 
     def r_login(self):
         """ Route for login
         """
-        with self.app.app_context():
-            return self.login(url_for(".index"))
+        return self.login(self.url_for(".index"))
 
     def r_logout(self):
         """ Route for logout
         """
-        with self.app.app_context():
-            return self.logout(url_for(".index"))
+        return self.logout(self.url_for(".index"))
 
     def r_github_oauth(self, *args, **kwargs):
         """ GitHub oauth route
         """
         def func(access_token):
-            with self.app.app_context():
-                next_uri = request.args.get('next') or url_for('.index')
-                return self.authorize(access_token, request, success=next_uri, error=url_for(".index"))
+            next_uri = request.args.get('next') or self.url_for('.index')
+            return self.authorize(access_token, request, success=next_uri, error=self.url_for(".index"))
 
         authorize = self.api.authorized_handler(func)
         return authorize(*args, **kwargs)
@@ -279,8 +280,7 @@ class HookUI(object):
         :param owner: Name of the user
         :param repository: Name of the repository
         """
-        with self.app.app_context():
-            return self.link(owner, repository, url_for(".api_test_payload"))
+        return self.link(owner, repository, self.url_for(".github_payload", _external=True))
 
     def r_repo_badge_status(self, owner, repository):
         """ Get a Badge for a repo
@@ -324,13 +324,12 @@ class HookUI(object):
         :param owner: Name of the user
         :param repository: Name of the repository
         """
-        with self.app.app_context():
-            return self.generate(
-                owner,
-                repository,
-                callback_url=url_for(".api_hooktest_endpoint", _external=True),
-                check_user=True
-            )
+        return self.generate(
+            owner,
+            repository,
+            callback_url=self.url_for(".api_hooktest_endpoint", _external=True),
+            check_user=True
+        )
 
     def r_api_repo_history(self, owner, repository):
         """ Return json history of previous tests
@@ -514,7 +513,7 @@ class HookUI(object):
         start, end = 0, 20
         repository = self.m_Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
 
-        if request.method == "POST" and hasattr(self.g, "user") and self.g.user in repository.authors:
+        if request.method == "POST" and hasattr(g, "user") and g.user in repository.authors:
             repository.config(request.form)
 
         # PAGINATION !!!
@@ -633,7 +632,7 @@ class HookUI(object):
         repo = self.m_Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
 
         if check_user:
-            if hasattr(self.g, "user") and not repo.isWritable(self.g.user):
+            if hasattr(g, "user") and not repo.isWritable(g.user):
                 resp = jsonify(status="error", message="You are not an owner of the repository", uuid=None)
                 return resp
 
@@ -648,6 +647,10 @@ class HookUI(object):
                 return informations
             else:
                 ref, creator, sha, url, uuid = informations
+
+        running_test = self.m_RepoTest.objects(branch=ref, user=creator, sha=sha, repository=repo, link=url, status__in=["queued", "downloading", "downloading", "pending"])
+        if len(running_test) > 0:
+            return json.dumps({"message": "Test already running", "status": "error"}), 200
 
         avatar = "https://avatars.githubusercontent.com/{0}".format(creator)
 
@@ -686,7 +689,7 @@ class HookUI(object):
         response = requests.put(self.remote, data=params, headers={'content-type': 'application/json', "HookTest-Secure-X" : self.make_hooktest_signature(params)})
         infos = response.json()
 
-        if infos["status"] == "queud":
+        if infos["status"] == "queued":
             test.update(hash=infos["job_id"], status="queued")
             return "success", "Test launched"
         else:
@@ -796,12 +799,12 @@ class HookUI(object):
         else:
             return False
 
-    def handle_payload(self, request, headers, callback_url):
+    def handle_payload(self, request, headers):
         """ Handle a payload call from Github
 
         :param request: Request sent by github
         :param headers: Header of the GitHub Request
-        :param callback_url: URL to use as a callback
+        :param callback_url: URL to use as a callback for HOOK
         :return: Response
         """
         status, message, code = "error", "Webhook query is not handled", 200
@@ -818,7 +821,6 @@ class HookUI(object):
             return response
 
         payload = request.get_json(force=True)
-        #  guid = headers.get("X-GitHub-Delivery")
         event = headers.get("X-GitHub-Event")
         username, repository = tuple(payload["repository"]["full_name"].split("/"))
         if event in ["push", "pull_request"]:
@@ -840,7 +842,7 @@ class HookUI(object):
                 response = self.generate(
                     username,
                     repository,
-                    callback_url=callback_url,
+                    callback_url=self.url_for(".api_hooktest_endpoint", _external=True),
                     creator=creator,
                     sha=sha,
                     url=url,
@@ -866,7 +868,7 @@ class HookUI(object):
             return "Unknown test", 404, {}
         repo = self.m_Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
 
-        if hasattr(self.g, "user") and not repo.isWritable(self.g.user):
+        if hasattr(g, "user") and not repo.isWritable(g.user):
             resp = jsonify(cancelled=False, message="You are not an owner of the repository", uuid=None)
             return resp
 
@@ -885,10 +887,9 @@ class HookUI(object):
         :return: json
         """
         response = False
-
-        if hasattr(self.g, "user") and self.g.user:
+        if hasattr(g, "user") and g.user:
             repository = self.m_Repository.objects(
-                authors__in=[self.g.user],
+                authors__in=[g.user],
                 owner__iexact=owner,
                 name__iexact=repository
             )
@@ -909,8 +910,8 @@ class HookUI(object):
 
         :returns: Active status
         """
+
         uri = "repos/{owner}/{repo}/hooks".format(owner=repository.owner, repo=repository.name)
-        payload = self.domain + callback_url
 
         if repository.tested is True:
             # Create hooks
@@ -922,7 +923,7 @@ class HookUI(object):
                 "pull_request"
               ],
               "config": {
-                "url": payload,
+                "url": callback_url,
                 "content_type": "json",
                 "secret": self.github_secret
               }
@@ -933,7 +934,7 @@ class HookUI(object):
         else:
             if repository.hook_id is None:
                 hooks = self.api.get(uri)
-                hooks = [service for service in hooks if service["config"]["url"] == payload]
+                hooks = [service for service in hooks if service["config"]["url"] == callback_url]
                 if len(hooks) == 0:
                     uuid = None
                 else:
@@ -1090,13 +1091,12 @@ class HookUI(object):
             state = "pending"
             sentence = "Currently testinself.g..."
 
-        with self.app.app_context():
-            data = {
-              "state": state,
-              "target_url": url_for(".repository_test", owner=repo.owner, repository=repo.name, uuid=test.uuid, _external=True),
-              "description": sentence,
-              "context": "continuous-integration/capitains-hook"
-            }
+        data = {
+          "state": state,
+          "target_url": self.url_for(".repository_test", owner=repo.owner, repository=repo.name, uuid=test.uuid, _external=True),
+          "description": sentence,
+          "context": "continuous-integration/capitains-hook"
+        }
 
         params = {}
         if not hasattr(self.g, "user"):
@@ -1227,8 +1227,15 @@ class HookUI(object):
     def g(self):
         """ G Flask APP global information
         """
-        with self.app.app_context():
-            return g
+        if not self.__g:
+            with self.app.app_context():
+                self.g = g
+
+        return self.__g
+
+    @g.setter
+    def g(self, value):
+        self.__g = value
 
     @property
     def domain(self):
@@ -1241,5 +1248,8 @@ class HookUI(object):
     def callback_url_hooktest_endpoint(self):
         """ Callback URL use for retrieving data from the HookTest service
         """
+        return self.url_for(".api_hooktest_endpoint", _external=True)
+
+    def url_for(self, route, **kwargs):
         with self.app.app_context():
-            return url_for(".api_hooktest_endpoint", _external=True)
+            return url_for(route, **kwargs)
