@@ -998,7 +998,8 @@ class HookUI(object):
             owner=username,
             name=reponame,
             branch=branch,
-            uuid=uuid
+            uuid=uuid,
+            finished=True
         )
 
         if not repo:
@@ -1061,7 +1062,7 @@ class HookUI(object):
 
         return template, {"score": score}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
 
-    def repo(self, owner, name, branch=None, uuid=None):
+    def repo(self, owner, name, branch=None, uuid=None, finished=False):
         """ Helper to find a repository
 
         :param owner:
@@ -1079,6 +1080,9 @@ class HookUI(object):
 
         if uuid:
             test_args["uuid__iexact"] = uuid
+
+        if finished:
+            test_args["status__in"] = ["failed", "success"]
 
         test = self.m_RepoTest.objects(**test_args).exclude("units.logs").exclude("units.text_logs")
 
