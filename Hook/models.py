@@ -253,7 +253,8 @@ def model_maker(db):
             """
             if self.finished:
                 self.units.delete()
-                self.update(status="pending", error_message=None)
+                self.reload()
+                self.update(status="queued", error_message=None, units=[])
                 self.reload()
                 return True
             return False
