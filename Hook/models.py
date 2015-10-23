@@ -246,6 +246,16 @@ def model_maker(db):
             units = [unit.status for unit in  self.units if "__cts__.xml" not in unit.path]
             return units.count(True), len(units)
 
+        def reset(self):
+            """ Reset the units and the status
+
+            :return: Status of success
+            """
+            if self.finished:
+                self.update(status="pending", units=[], error_message=None)
+                return True
+            return False
+
         def units_status(self):
             """ Return a json representation of each units status
             :return: List

@@ -37,6 +37,7 @@ class HookUI(object):
         ('/api/rest/v1.0/code/<owner>/<repository>/coverage.svg', "r_repo_badge_coverage", ["GET"]),
         ('/api/rest/v1.0/code/<owner>/<repository>/test', "r_api_test_generate_route", ["GET"]),
         ('/api/rest/v1.0/code/<owner>/<repository>', "r_api_repo_history", ["GET", "DELETE"]),
+        ('/api/rest/v1.0/code/<owner>/<repository>/reset/<uuid>', "r_api_repo_test_reset", ["GET"]),
         ('/api/rest/v1.0/code/<owner>/<repository>/unit', "r_api_repo_unit_history", ["GET"]),
 
         ("/favicon.ico", "r_favicon", ["GET"]),
@@ -362,6 +363,17 @@ class HookUI(object):
             unit=request.args.get("unit", "all")
         ))
 
+    def r_api_repo_test_reset(self, owner, repository, uuid):
+        """ Reset a test
+
+        :param owner: Name of the user
+        :param repository: Name of the repository
+        :param uuid: Identifier of the test
+        :return: Json message
+        """
+        status, message = self.repo_test_reset(owner, repository, uuid)
+        return jsonify(status=status, message=message)
+
     def r_favicon(self):
         return self.r_favicon_specific()
 
@@ -497,6 +509,30 @@ class HookUI(object):
     """
         CONTROLLER FUNCTIONS
     """
+    def repo_test_reset(self, owner, repository, uuid):
+        """ Reset a repository
+
+        :param owner: Name of the user
+        :param repository: Name of the repository
+        :param uuid: Identifier of the test
+        :return: Status of success, Message
+        """
+        repository = self.m_Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
+
+        if hasattr(g, "user") and not repository.isWritable(g.user):
+            return False, "You don't have any rights on this repository"
+
+        test = self.m_RepoTest.objects.get_or_404(repository=repository, uuid=uuid)
+        test.reset()
+        test.reload()
+        status, message = self.dispatch(
+            test,
+            callback_url=self.url_for(".api_hooktest_endpoint", _external=True)
+        )
+        if status:
+            self.comment(test)
+        return status, message
+
 
     def read_repo(self, owner, repository, request):
         """ Read the repository tests
