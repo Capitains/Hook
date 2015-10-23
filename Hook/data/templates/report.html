@@ -34,7 +34,9 @@
         {% if test.error_message %}
           <em>Traceback :</em>
           <pre style="margin:5%;" class="pre-scrollable">{{test.error_message}}</pre>
+          {% if repository.isWritable(current_user) %}
           <p><a class="reset" href="{{url_for(".api_repo_test_reset", owner=repository.owner, repository=repository.name, uuid=test.uuid)}}">Restart the test <span class="status"></span></a> </p>
+          {% endif %}
         {% endif %}
         <div class="row">
           <section class="col-md-12">
