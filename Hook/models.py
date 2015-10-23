@@ -252,7 +252,9 @@ def model_maker(db):
             :return: Status of success
             """
             if self.finished:
-                self.update(status="pending", units=[], error_message=None)
+                self.units.delete()
+                self.update(status="pending", error_message=None)
+                self.reload()
                 return True
             return False
 
