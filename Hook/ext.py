@@ -555,8 +555,8 @@ class HookUI(object):
         # PAGINATION !!!
         tests = self.m_RepoTest.objects(
             repository=repository
-        ).exclude(
-            "units"
+        ).only(
+            ["uuid", "sha", "ref", "status", "units.status", "user", "gravatar", "coverage", "cts_metadata", "texts", "run_at"]
         )
 
         done = [test for test in tests if test.finished]
