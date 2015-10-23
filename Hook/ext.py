@@ -558,7 +558,7 @@ class HookUI(object):
         tests = self.m_RepoTest.objects(
             repository=repository
         ).only(
-            "uuid", "sha", "ref", "status", "units.status", "user", "gravatar", "coverage", "cts_metadata", "texts", "run_at"
+            "uuid", "sha", "branch", "branch_slug", "status", "units.status", "user", "gravatar", "coverage", "cts_metadata", "texts", "run_at"
         )
 
         done = [test for test in tests if test.finished]
