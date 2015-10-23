@@ -523,14 +523,16 @@ class HookUI(object):
             return False, "You don't have any rights on this repository"
 
         test = self.m_RepoTest.objects.get_or_404(repository=repository, uuid=uuid)
-        test.reset()
-        test.reload()
-        status, message = self.dispatch(
-            test,
-            callback_url=self.url_for(".api_hooktest_endpoint", _external=True)
-        )
-        if status:
-            self.comment(test)
+        status, message = False, "Test already runnning"
+        if test.reset():
+            test.reload()
+            status, message = self.dispatch(
+                test,
+                callback_url=self.url_for(".api_hooktest_endpoint", _external=True)
+            )
+            if status:
+                self.comment(test)
+
         return status, message
 
 
