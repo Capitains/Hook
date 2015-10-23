@@ -246,12 +246,12 @@ def model_maker(db):
             units = [unit.status for unit in  self.units if "__cts__.xml" not in unit.path]
             return units.count(True), len(units)
 
-        def reset(self):
+        def reset(self, force=False):
             """ Reset the units and the status
 
             :return: Status of success
             """
-            if self.finished:
+            if self.finished or force:
                 self.units.delete()
                 self.reload()
                 self.update(status="queued", error_message=None, units=[])

@@ -371,7 +371,7 @@ class HookUI(object):
         :param uuid: Identifier of the test
         :return: Json message
         """
-        status, message = self.repo_test_reset(owner, repository, uuid)
+        status, message = self.repo_test_reset(owner, repository, uuid, force=request.args.get("force", False))
         return jsonify(status=status, message=message)
 
     def r_favicon(self):
@@ -509,12 +509,13 @@ class HookUI(object):
     """
         CONTROLLER FUNCTIONS
     """
-    def repo_test_reset(self, owner, repository, uuid):
+    def repo_test_reset(self, owner, repository, uuid, force=False):
         """ Reset a repository
 
         :param owner: Name of the user
         :param repository: Name of the repository
         :param uuid: Identifier of the test
+        :param force: Force reset
         :return: Status of success, Message
         """
         repository = self.m_Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
@@ -524,7 +525,7 @@ class HookUI(object):
 
         test = self.m_RepoTest.objects.get_or_404(repository=repository, uuid=uuid)
         status, message = False, "Test already runnning"
-        if test.reset():
+        if test.reset(force=force):
             test.reload()
             status, message = self.dispatch(
                 test,
