@@ -34,6 +34,7 @@
         {% if test.error_message %}
           <em>Traceback :</em>
           <pre style="margin:5%;" class="pre-scrollable">{{test.error_message}}</pre>
+          <p><a class="reset" href="{{url_for(".api_repo_test_reset", owner=repository.owner, repository=repository.name, uuid=test.uuid)}}">Restart the test <span class="status"></span></a> </p>
         {% endif %}
         <div class="row">
           <section class="col-md-12">
@@ -82,6 +83,13 @@
                 target = that.parent().find(".target");
 
             logs(target, that.attr("href"));
+        });
+        $("a.reset").on("click", function(e) {
+            e.preventDefault();
+            var dat = $(this);
+            $.get(dat.attr("href"), function(data) {
+                that.find(".status").text(data.message);
+            });
         });
     });
 </script>
