@@ -66,8 +66,6 @@
 <script type="text/javascript">
     $(document).ready(function() {
 
-
-
         $(".filelist a").on("click", function(e) {
             e.preventDefault();
             var that = $(this),
@@ -82,6 +80,12 @@
                 that.find(".status").text(data.message);
             });
         });
+
+        if(window.location.hash) {
+            var hash = window.location.hash.substring(1), //Puts hash in variable, and removes the # character
+                element = $("a[name='"+hash+"']");
+            element.click();
+        }
     });
 </script>
 {% endblock %}
