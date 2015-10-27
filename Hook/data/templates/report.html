@@ -43,12 +43,14 @@
         <div class="row">
           <section class="col-md-12">
             <div class="filelist dl-horizontal">
+                <table class="table">
               {% for unit in test.units|sort(attribute='path') %}
-                <div  class="row">
-                    <div class="col-md-10"><a href="{{url_for(".api_repo_unit_history", owner=repository.owner, repository=repository.name)}}?uuid={{test.uuid}}&unit={{unit.path}}">{{unit.path}}</a><div class="target"></div></div>
-                    <div class="col-md-2"><div class="hookbadge {{unit.status|success_class}}">{{unit.status|success_class}}</div></div>
+                    <tr class="{{unit.status|success_class_table}}">
+                    <td><a href="{{url_for(".api_repo_unit_history", owner=repository.owner, repository=repository.name)}}?uuid={{test.uuid}}&unit={{unit.path}}" name="{{unit.path}}">{{unit.path}}</a><div class="target"></div></td>
+                    <td class="col-md-2">{{unit.status|success_class}}</td></tr>
                 </div>
               {% endfor %}
+              </table>
             </div>
           </section>
         </div>
@@ -64,22 +66,7 @@
 <script type="text/javascript">
     $(document).ready(function() {
 
-    /*reload($("#informations-log"));
-    ,
-            url = "{{url_for(".api_repo_unit_history", owner=repository.name, repository=repository.owner)}}";
 
-        $.get(that.attr("href"), function(data) {
-            for ( var i = 0, l = arr.length; i < l; i++ ) {
-                var row = $("<div />", {"class":"row"}),
-                    name = $("<div />", {"class":"col-md-10"}),
-                    a = $("a", {"href",
-                    badge=;
-                $(".filelist").append(
-
-                );
-            }
-        });
-    */
 
         $(".filelist a").on("click", function(e) {
             e.preventDefault();

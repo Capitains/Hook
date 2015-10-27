@@ -54,6 +54,7 @@ class HookUI(object):
         'f_tei',
         'f_epidoc',
         'f_success_class',
+        "f_success_class_table",
         "f_ctsized"
     ]
 
@@ -494,6 +495,20 @@ class HookUI(object):
             string = "success"
         elif status is False:
             string = "failed"
+        return string
+
+    @staticmethod
+    def f_success_class_table(status):
+        """ Return success or failed depending on boolean
+
+        :param status: Status
+        :return: Success or fail
+        """
+        string = ""
+        if status is True:
+            string = "danger"
+        elif status is False:
+            string = "success"
         return string
 
     @staticmethod
