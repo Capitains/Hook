@@ -506,9 +506,9 @@ class HookUI(object):
         """
         string = ""
         if status is True:
-            string = "danger"
-        elif status is False:
             string = "success"
+        elif status is False:
+            string = "danger"
         return string
 
     @staticmethod
