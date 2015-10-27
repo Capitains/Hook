@@ -1144,7 +1144,7 @@ class HookUI(object):
             sentence = "Full repository is cts compliant"
         elif test.status == "failed":
             state = "failure"
-            sentence = "{0:.2f}% of unit tests passed. {1} CTS compatibles".format(test.coverage, "/".join(list(test.ctsized)))
+            sentence = "{0:.2f}% of unit tests passed. {1} CTS compatibles".format(test.coverage, HookUI.f_ctsized(test.ctsized()))
         else:
             state = "pending"
             sentence = "Currently testing..."
