@@ -12,6 +12,8 @@ import json
 import requests
 from uuid import uuid4
 from time import time
+from datetime import datetime
+
 
 from Hook.models import model_maker
 from Hook.common import slugify
@@ -1000,6 +1002,17 @@ class HookUI(object):
 
         return repository.tested
 
+    def svg_header(self):
+        """ SVG headers with cache informations
+
+        :return: HTTP Headers
+        """
+        return {
+            "Cache-Control": "no-cache",
+            "Last-Modified": datetime.utcnow().ctime(),
+            'Content-Type': 'image/svg+xml; charset=utf-8'
+        }
+
     def cts_badge(self, username, reponame, branch=None, uuid=None):
         """
 
@@ -1023,7 +1036,7 @@ class HookUI(object):
 
         cts, total = repo.ctsized()
         template = "svg/cts.xml"
-        return template, {"cts": cts, "total": total}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
+        return template, {"cts": cts, "total": total}, 200, self.svg_header()
 
     def status_badge(self, username, reponame, branch=None, uuid=None):
         """ Create a status badge
@@ -1046,7 +1059,7 @@ class HookUI(object):
         else:
             template = "svg/build.{0}.xml".format(repo.status)
 
-        return template, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
+        return template, 200, self.svg_header()
 
     def coverage_badge(self, username, reponame, branch=None, uuid=None):
         """ Create a status badge
@@ -1065,7 +1078,7 @@ class HookUI(object):
         )
 
         if not repo or not repo.coverage:
-            return "svg/build.coverage.unknown.xml", {}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
+            return "svg/build.coverage.unknown.xml", {}, 200, self.svg_header()
 
         score = math.floor(repo.coverage * 100) / 100
 
@@ -1076,7 +1089,7 @@ class HookUI(object):
         else:
             template = "svg/build.coverage.failure.xml"
 
-        return template, {"score": score}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
+        return template, {"score": score}, 200, self.svg_header()
 
     def repo(self, owner, name, branch=None, uuid=None, finished=False):
         """ Helper to find a repository
