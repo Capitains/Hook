@@ -98,6 +98,14 @@ def model_maker(db):
         verbose = db.BooleanField(default=False)
         authors = db.ListField(db.ReferenceField(User))
 
+        meta= {
+            'indexes': [
+                ("$owner", "$name"),
+                ("authors")
+            ]
+
+        }
+
         @property
         def full_name(self):
             return self.owner + "/" + self.name
@@ -222,7 +230,17 @@ def model_maker(db):
         verbose = db.BooleanField(default=False)
 
         meta = {
-            'ordering': ['-run_at']
+            'ordering': ['-run_at'],
+            'indexes': [
+                '$uuid',
+                'repository',
+                '$status',
+                ('repository', '$branch'),
+                ('repository', '$branch', '$status'),
+                ('repository', '$branch', '$status'),
+                ('repository', '$branch', '$status', '$uuid'),
+                'run_at'
+            ]
         }
 
         @property
