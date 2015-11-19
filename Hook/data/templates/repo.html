@@ -90,21 +90,23 @@
           </div>
       </div>
       <div class="row">
-          <div class="col-md-12">
+          <ul class="col-md-12">
               <h2>Tests</h2>
-              <div class=pagination>
-              {%- for page in pagination.iter_pages() %}
-                {% if page %}
-                  {% if page != pagination.page %}
-                    <a href="{{url_for('.repository', owner=repository.owner, repository=repository.name, page=page)}}">{{ page }}</a>
-                  {% else %}
-                    <strong>{{ page }}</strong>
-                  {% endif %}
-                {% else %}
-                  <span class=ellipsis>…</span>
-                {% endif %}
-              {%- endfor %}
-              </div>
+              <nav>
+                  <ul class="pagination pagination-sm">
+                  {%- for page in pagination.iter_pages() %}
+                    {% if page %}
+                          {% if page != pagination.page %}
+                        <li><a href="{{url_for('.repository', owner=repository.owner, repository=repository.name, page=page)}}">{{ page }}</a></li>
+                      {% else %}
+                        <li class="active"><a href="#"><strong>{{ page }}</strong></a></li>
+                      {% endif %}
+                    {% else %}
+                      <li class="disabled"><span class=ellipsis>…</span></li>
+                    {% endif %}
+                  {%- endfor %}
+                  </ul>
+              </nav>
               <table class="table table-striped">
                   <thead>
                       <tr>
