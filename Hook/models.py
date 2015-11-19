@@ -243,6 +243,8 @@ def model_maker(db):
 
         @property
         def tested(self):
+            if (not self.units or len(self.units) == 0) and self.total > 0:
+                self.reload("units._id")
             return len(self.units)
 
         @property
