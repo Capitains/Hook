@@ -564,8 +564,6 @@ class HookUI(object):
         :param request: Request information
         :return: Repository informations with a list of tests (completed and running separated)
 
-        .. todo:: Pagination & Moving the post to the route
-
         """
 
         page = request.args.get("page", 1, type=int)
@@ -575,11 +573,10 @@ class HookUI(object):
         if request.method == "POST" and hasattr(g, "user") and g.user in repository.authors:
             repository.config(request.form)
 
-        # PAGINATION !!!
         pagination = self.m_RepoTest.objects(
             repository=repository
         ).only(
-            "uuid", "sha", "branch", "branch_slug", "status", "units.status", "user", "gravatar", "coverage", "cts_metadata", "texts", "run_at"
+            "uuid", "sha", "branch", "branch_slug", "status", "user", "gravatar", "coverage", "cts_metadata", "texts", "run_at"
         ).paginate(page=page, per_page=self.objects_per_page)
 
         done = [test for test in pagination.items if test.finished]
