@@ -582,8 +582,8 @@ class HookUI(object):
             "uuid", "sha", "branch", "branch_slug", "status", "units.status", "user", "gravatar", "coverage", "cts_metadata", "texts", "run_at"
         ).paginate(page=page, per_page=self.objects_per_page)
 
-        done = [test for test in pagination.iterable if test.finished]
-        running = [test for test in pagination.iterable if test.finished == False]
+        done = [test for test in pagination.items if test.finished]
+        running = [test for test in pagination.items if test.finished == False]
 
         for r in running:
             if r.total > 0:
