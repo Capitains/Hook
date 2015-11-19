@@ -91,7 +91,20 @@
       </div>
       <div class="row">
           <div class="col-md-12">
-              <h2>Past tests</h2>
+              <h2>Tests</h2>
+              <div class=pagination>
+              {%- for page in pagination.iter_pages() %}
+                {% if page %}
+                  {% if page != pagination.page %}
+                    <a href="{{url_for('.repository', owner=repository.owner, repository=repository.name, page=page)}}">{{ page }}</a>
+                  {% else %}
+                    <strong>{{ page }}</strong>
+                  {% endif %}
+                {% else %}
+                  <span class=ellipsis>…</span>
+                {% endif %}
+              {%- endfor %}
+              </div>
               <table class="table table-striped">
                   <thead>
                       <tr>

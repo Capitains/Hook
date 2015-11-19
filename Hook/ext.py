@@ -97,6 +97,8 @@ class HookUI(object):
         self.hooktest_secret = hooktest_secret
         self.prefix = prefix
 
+        self.objects_per_page = 20
+
         self.static_folder = static_folder
         if not self.static_folder:
             self.static_folder = resource_filename("Hook", "data/static")
@@ -566,21 +568,22 @@ class HookUI(object):
 
         """
 
-        start, end = 0, 20
+        page = request.args.get("page", 1, type=int)
+        # #
         repository = self.m_Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
 
         if request.method == "POST" and hasattr(g, "user") and g.user in repository.authors:
             repository.config(request.form)
 
         # PAGINATION !!!
-        tests = self.m_RepoTest.objects(
+        pagination = self.m_RepoTest.objects(
             repository=repository
         ).only(
             "uuid", "sha", "branch", "branch_slug", "status", "units.status", "user", "gravatar", "coverage", "cts_metadata", "texts", "run_at"
-        )
+        ).paginate(page=page, per_page=self.objects_per_page)
 
-        done = [test for test in tests if test.finished]
-        running = [test for test in tests if test.finished == False]
+        done = [test for test in pagination.iterable if test.finished]
+        running = [test for test in pagination.iterable if test.finished == False]
 
         for r in running:
             if r.total > 0:
@@ -591,7 +594,8 @@ class HookUI(object):
         return {
             "repository": repository,
             "tests": done,
-            "running": running
+            "running": running,
+            "pagination": pagination
         }
 
     def repo_report(self, owner, repository, uuid, json=False):
