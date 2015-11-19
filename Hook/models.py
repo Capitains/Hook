@@ -100,7 +100,7 @@ def model_maker(db):
 
         meta= {
             'indexes': [
-                ("$owner", "$name"),
+                ("owner", "name"),
                 ("authors")
             ]
 
@@ -232,13 +232,11 @@ def model_maker(db):
         meta = {
             'ordering': ['-run_at'],
             'indexes': [
-                '$uuid',
+                'uuid',
                 'repository',
-                '$status',
-                ('repository', '$branch'),
-                ('repository', '$branch', '$status'),
-                ('repository', '$branch', '$status'),
-                ('repository', '$branch', '$status', '$uuid'),
+                ('repository', 'branch'),
+                ('repository', 'branch', 'status'),
+                ('repository', 'branch', 'status', 'uuid'),
                 'run_at'
             ]
         }
