@@ -244,7 +244,7 @@ def model_maker(db):
         @property
         def tested(self):
             if (not self.units or len(self.units) == 0) and self.total > 0:
-                self.reload(1, "units")
+                self.reload(2, "units.status")
             return len(self.units)
 
         @property
