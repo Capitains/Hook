@@ -697,7 +697,12 @@ class HookUI(object):
                 resp = jsonify(status="error", message="You are not an owner of the repository", uuid=None)
                 return resp
 
-        return json.dumps({"a":repo.master_pr})
+        return json.dumps({
+            "a": check_branch is True and repo.master_pr is True and not HookUI.PR_FINDER.match(ref) and not ref.endswith("master"),
+            "b": ref,
+            "match": HookUI.PR_FINDER.match(ref),
+            "master": ref.endswith("master")
+        })
 
         if check_branch is True and repo.master_pr is True and \
                 not HookUI.PR_FINDER.match(ref) and not ref.endswith("master"):
