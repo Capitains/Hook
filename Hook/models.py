@@ -36,6 +36,7 @@ def model_maker(db):
 
         @property
         def is_active(self):
+            """ Status of the user """
             return True
 
         def get_id(self):
@@ -48,20 +49,25 @@ def model_maker(db):
 
         @property
         def repositories(self):
+            """ Return repositories register for this author when user is not the owner """
             return list(Repository.objects(authors__in=[self]))
 
         @property
         def organizations(self):
+            """ Return repositories register for this author when user is not the owner """
             return Repository.objects(authors__in=[self]).distinct("owner")
 
         @property
         def testable(self):
+            """ Return repositories register for this author and activated for tests """
             return Repository.objects(authors__in=[self], tested=True)
 
-        def switch(self, owner, name, callback):
-            return Repository.switch(owner, name, self, callback)
-
-        def repository(self, owner, name, author):
+        def repository(self, owner, name):
+            """ Find repository for owner and name where self is part of the authors
+            :param owner: Name of the owner
+            :param name: Name of the repository
+            :return: Repository filtered
+            """
             return Repository.objects(authors__in=[self], owner__iexact=owner, name__iexact=name)
 
         def addto(self, owner, name):
@@ -108,21 +114,40 @@ def model_maker(db):
 
         @property
         def full_name(self):
+            """ Full name repository in the form {owner}/{name} """
             return self.owner + "/" + self.name
 
         def dict(self):
+            """ Dictionary with owner and name as keys
+
+            :return: Dictionary with owner and name as keys
+            :rtype: dict
+            """
             return {
                 "owner": self.owner,
                 "name": self.name
             }
 
         def isWritable(self, user):
+            """ Check if user as write right on this repository
+
+            :param user: User to check property against
+            :type user: User
+            :return: Write Right
+            :rtype: bool
+            """
             if user in self.authors:
                 return True
             return False
 
         def config(self, form):
-            """ Update the object config """
+            """ Update the object config
+
+            :param form: Form data to use for update
+            :type form: dict
+
+            :return: Update status
+            """
             dtd, master_pr, verbose = self.dtd, False, False
             if "dtd" in form:
                 if form["dtd"] in ["tei", "epidoc"]:
@@ -135,6 +160,7 @@ def model_maker(db):
             self.update(dtd=dtd, master_pr=master_pr, verbose=verbose)
             self.reload()
             self.updated = True
+            return self.updated
 
         @staticmethod
         def switch(owner, name, user, callback=lambda x: True):
@@ -187,6 +213,11 @@ def model_maker(db):
 
         @staticmethod
         def report(document):
+            """ Report in dict format for the document test
+
+            :param document: Document to build report from
+            :return: Dictionary representation
+            """
             return {
                 "path": document.path,
                 "time": document.at,
@@ -253,6 +284,8 @@ def model_maker(db):
 
         @property
         def finished(self):
+            """ Boolean indicating if test is finished
+            """
             return self.status in ["failed", "error", "success"]
 
         def ctsized(self):
