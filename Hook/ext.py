@@ -697,13 +697,11 @@ class HookUI(object):
                 resp = jsonify(status="error", message="You are not an owner of the repository", uuid=None)
                 return resp
 
+        return json.dumps({"a":repo.master_pr})
+
         if check_branch is True and repo.master_pr is True and \
                 not HookUI.PR_FINDER.match(ref) and not ref.endswith("master"):
-            response = jsonify(
-                status="ignore",
-                message="Test ignored because this is not a pull request nor a push to master"
-            )
-            return response
+            return json.dumps({"message": "Test ignored because this is not a pull request nor a push to master", "status": "ignore"}), 200
 
         if creator is None:  # sha and url should be None
             informations = self.generate_informations(repo)
