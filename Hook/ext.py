@@ -697,15 +697,8 @@ class HookUI(object):
                 resp = jsonify(status="error", message="You are not an owner of the repository", uuid=None)
                 return resp
 
-        return json.dumps({
-            "a": check_branch is True and repo.master_pr is True and HookUI.PR_FINDER.match(ref) is None and not ref.endswith("master"),
-            "b": ref,
-            "match": HookUI.PR_FINDER.match(ref),
-            "master": ref.endswith("master")
-        })
-
         if check_branch is True and repo.master_pr is True and \
-                not HookUI.PR_FINDER.match(ref) and not ref.endswith("master"):
+                HookUI.PR_FINDER.match(ref) is None and ref.endswith("master") is False:
             return json.dumps({"message": "Test ignored because this is not a pull request nor a push to master", "status": "ignore"}), 200
 
         if creator is None:  # sha and url should be None
@@ -876,7 +869,6 @@ class HookUI(object):
         """
         status, message, code = "error", "Webhook query is not handled", 200
         creator, sha, ref, url, do = None, None, None, None, None
-        pull_request = False
 
         signature = headers.get("X-Hub-Signature")
         if not self.check_github_signature(request.data, signature):
@@ -896,7 +888,6 @@ class HookUI(object):
                 sha = payload["head_commit"]["id"]
                 url = payload["compare"]
                 ref = payload["ref"]
-                pull_request = False
                 do = True
             elif event == "pull_request" and payload["action"] in ["reopened", "opened", "synchronize"]:
                 creator = payload["pull_request"]["user"]["login"]
@@ -904,7 +895,6 @@ class HookUI(object):
                 sha = payload["pull_request"]["head"]["sha"]
                 ref = "pull/{0}/head".format(payload["number"])
                 do = True
-                pull_request = True
             if do:
                 response = self.generate(
                     username,
@@ -914,8 +904,7 @@ class HookUI(object):
                     sha=sha,
                     url=url,
                     ref=ref,
-                    uuid=str(uuid4()),
-                    check_branch=pull_request
+                    uuid=str(uuid4())
                 )
                 return response
 
