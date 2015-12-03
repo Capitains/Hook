@@ -698,7 +698,7 @@ class HookUI(object):
                 return resp
 
         return json.dumps({
-            "a": check_branch is True and repo.master_pr is True and not HookUI.PR_FINDER.match(ref) and not ref.endswith("master"),
+            "a": check_branch is True and repo.master_pr is True and HookUI.PR_FINDER.match(ref) is None and not ref.endswith("master"),
             "b": ref,
             "match": HookUI.PR_FINDER.match(ref),
             "master": ref.endswith("master")
