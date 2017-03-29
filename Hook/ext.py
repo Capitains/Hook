@@ -1,5 +1,4 @@
-from flask import Flask, Blueprint, url_for, request, render_template, g, Markup, session, redirect, jsonify, send_from_directory
-from flask.ext.mongoengine import MongoEngine
+from flask import Blueprint, url_for, request, render_template, g, Markup, session, redirect, jsonify, send_from_directory
 from flask.ext.github import GitHub
 from flask.ext.login import LoginManager
 
