@@ -1,6 +1,7 @@
-from flask import Blueprint, url_for, request, render_template, g, Markup, session, redirect, jsonify, send_from_directory
-from flask.ext.github import GitHub
-from flask.ext.login import LoginManager
+from flask import Blueprint, url_for, request, render_template, g, Markup, session, redirect, jsonify, send_from_directory, abort
+from flask_github import GitHub
+from flask_login import LoginManager, current_user
+from flask_sqlalchemy import SQLAlchemy
 
 from pkg_resources import resource_filename
 import re
@@ -14,6 +15,7 @@ from time import time
 
 from Hook.models import model_maker
 from Hook.common import slugify
+
 
 class HookUI(object):
     ROUTES = [
@@ -32,8 +34,8 @@ class HookUI(object):
         ("/api/rest/v1.0/user/repositories/<owner>/<repository>", "r_api_user_repository_switch", ["PUT"]),
 
         ('/api/rest/v1.0/code/<owner>/<repository>/status.svg', "r_repo_badge_status", ["GET"]),
-        ('/api/rest/v1.0/code/<owner>/<repository>/cts.svg', "r_repo_cts_status", ["GET"]),
-        ('/api/rest/v1.0/code/<owner>/<repository>/coverage.svg', "r_repo_badge_coverage", ["GET"]),
+        ('/api/hook/v2.0/badges/<owner>/<repository>/cts.svg', "r_repo_cts_status", ["GET"]),
+        ('/api/hook/v2.0/badges/<owner>/<repository>/coverage.svg', "r_repo_badge_coverage", ["GET"]),
         ('/api/rest/v1.0/code/<owner>/<repository>/test', "r_api_test_generate_route", ["GET"]),
         ('/api/rest/v1.0/code/<owner>/<repository>', "r_api_repo_history", ["GET", "DELETE"]),
         ('/api/rest/v1.0/code/<owner>/<repository>/unit', "r_api_repo_unit_history", ["GET"]),
@@ -59,15 +61,15 @@ class HookUI(object):
     PR_FINDER = re.compile("pull\/([0-9]+)\/head")
 
     def __init__(self,
-         prefix="", mongo=None, github=None, login=None,
+         prefix="", database=None, github=None, login=None,
          remote=None, github_secret=None, hooktest_secret=None,
          static_folder=None, template_folder=None, app=None, name=None
     ):
         """ Initiate the class
 
         :param prefix: Prefix on which to install the extension
-        :param mongo: Mongo Database to use
-        :type mongo: MongoEngine
+        :param database: Mongo Database to use
+        :type database: MongoEngine
         :param github: GitHub extension for doing requests
         :type github: GitHub
         :param login: Login extension
@@ -83,7 +85,7 @@ class HookUI(object):
         self.name = name
         self.blueprint = None
 
-        self.db = mongo
+        self.db = database
         self.api = github
         self.login_manager = login
 
@@ -100,8 +102,6 @@ class HookUI(object):
         if not self.template_folder:
             self.template_folder = resource_filename("Hook", "data/templates")
 
-        self.m_User, self.m_Repository, self.m_RepoTest, self.m_DocLogs, self.m_DocTest, self.m_DocUnitStatus = None, None, None, None, None, None
-
         if self.name is None:
             self.name = __name__
 
@@ -111,9 +111,7 @@ class HookUI(object):
     def before_request(self):
         """ Before request function for the Blueprint
         """
-        if 'user_id' in self.session:
-            g.user = self.m_User.objects.get(uuid=self.session['user_id'])
-
+        g.user = current_user
 
     def init_app(self, app):
         """ Initiate the extension on the application
@@ -127,18 +125,11 @@ class HookUI(object):
             self.app = app
 
         if not self.db:
-            self.db = MongoEngine(app)
+            self.db = SQLAlchemy(app)
         if not self.api:
             self.api = GitHub(app)
         if not self.login_manager:
             self.login_manager = LoginManager(app)
-
-        if not self.remote:
-          self.remote = app.config["HOOKUI_REMOTE"]
-        if not self.github_secret:
-          self.github_secret = app.config["HOOKUI_GITHUB_SECRET"]
-        if not self.hooktest_secret:
-          self.hooktest_secret = app.config["HOOKUI_HOOKTEST_SECRET"]
 
         # Register token getter for github
         self.api.access_token_getter(self.github_token_getter)
@@ -149,7 +140,7 @@ class HookUI(object):
         self.init_blueprint()
 
         # Generate Instance models
-        self.m_User, self.m_Repository, self.m_RepoTest, self.m_DocLogs, self.m_DocTest, self.m_DocUnitStatus = model_maker(self.db)
+        self.Models = model_maker(self.db)
 
         return self.blueprint
 
@@ -190,11 +181,11 @@ class HookUI(object):
         """ Load a user
 
         :param user_id: User id
+        :type user_id: int
         :return: User or None
+        :rtype: User
         """
-        if hasattr(g, "user"):
-            return g.user
-        return None
+        return self.Models.User.query.get(int(user_id))
 
     def github_token_getter(self):
         """ Get the github token
@@ -271,7 +262,7 @@ class HookUI(object):
     def r_api_user_repositories(self):
         """ Route fetching user repositories
         """
-        return self.fetch(request.method)
+        return self.fetch_repositories(request.method)
 
     def r_api_user_repository_switch(self, owner, repository):
         """ Route for toggling github webhook
@@ -510,7 +501,7 @@ class HookUI(object):
         """
 
         start, end = 0, 20
-        repository = self.m_Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
+        repository = self.m_Repository.objects.filter_or_404(owner__iexact=owner, name__iexact=repository)
 
         if request.method == "POST" and hasattr(g, "user") and g.user in repository.authors:
             repository.config(request.form)
@@ -547,7 +538,7 @@ class HookUI(object):
         :return: Response containing the Report
         """
 
-        repository = self.m_Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
+        repository = self.m_Repository.objects.filter_or_404(owner__iexact=owner, name__iexact=repository)
         test = self.m_RepoTest\
             .objects(repository=repository, uuid=uuid)\
             .exclude("units.text_logs")\
@@ -571,9 +562,9 @@ class HookUI(object):
         :return: Report for a specific unit
         """
 
-        repository = self.m_Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
+        repository = self.m_Repository.objects.filter_or_404(owner__iexact=owner, name__iexact=repository)
         if unit == "all":
-            test = self.m_RepoTest.objects.get_or_404(repository=repository, uuid=uuid)
+            test = self.m_RepoTest.objects.filter_or_404(repository=repository, uuid=uuid)
             report = self.m_RepoTest.report(owner, repository, repo_test=test)
         else:
             test = self.m_RepoTest.objects(
@@ -628,7 +619,7 @@ class HookUI(object):
         :param uuid: UUID to use
         :param check_branch: If set to True, should check against repo.master_pr
         """
-        repo = self.m_Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
+        repo = self.m_Repository.objects.filter_or_404(owner__iexact=username, name__iexact=reponame)
 
         if check_user:
             if hasattr(g, "user") and not repo.isWritable(g.user):
@@ -799,7 +790,7 @@ class HookUI(object):
             return False
 
     def handle_payload(self, request, headers):
-        """ Handle a payload call from Github
+        """ Handle a payload call from Github [Gonna need to change]
 
         :param request: Request sent by github
         :param headers: Header of the GitHub Request
@@ -855,96 +846,6 @@ class HookUI(object):
         response.status_code = code
         return response
 
-    def cancel(self, owner, repository, uuid=None):
-        """ Cancel a test
-
-        :param owner:
-        :param repository:
-        :param uuid:
-        :return:
-        """
-        if uuid is None:
-            return "Unknown test", 404, {}
-        repo = self.m_Repository.objects.get_or_404(owner__iexact=owner, name__iexact=repository)
-
-        if hasattr(g, "user") and not repo.isWritable(g.user):
-            resp = jsonify(cancelled=False, message="You are not an owner of the repository", uuid=None)
-            return resp
-
-        test = self.m_RepoTest.objects.get_or_404(repository=repo, uuid__iexact=uuid)
-        test.update(status="error")
-
-        response = requests.delete("{0}/{1}".format(self.remote, uuid))
-        return jsonify(cancelled=True)
-
-    def link(self, owner, repository, callback_url):
-        """ Set Github to start or stop pinging the current repository
-
-        :param owner:
-        :param repository:
-        :param callback_url: URL for callback
-        :return: json
-        """
-        response = False
-        if hasattr(g, "user") and g.user:
-            repository = self.m_Repository.objects(
-                authors__in=[g.user],
-                owner__iexact=owner,
-                name__iexact=repository
-            )
-            if len(repository) > 0:
-                repository = repository.first()
-                tested = not repository.tested
-                repository.update(tested=tested)
-                repository.reload()
-                response = self.__make_link(repository, callback_url)
-
-        return jsonify(status=response)
-
-    def __make_link(self, repository, callback_url):
-        """ Create or delete hooks on GitHub API
-
-        :param repository: Repository to add or delete the hook from
-        :type repository: Hook.models.github.Repository
-
-        :returns: Active status
-        """
-
-        uri = "repos/{owner}/{repo}/hooks".format(owner=repository.owner, repo=repository.name)
-
-        if repository.tested is True:
-            # Create hooks
-            hook_data = {
-              "name": "web",
-              "active": True,
-              "events": [
-                "push",
-                "pull_request"
-              ],
-              "config": {
-                "url": callback_url,
-                "content_type": "json",
-                "secret": self.github_secret
-              }
-            }
-            service = self.api.post(uri, data=hook_data)
-            if "id" in service:
-                repository.update(hook_id=service["id"])
-        else:
-            if repository.hook_id is None:
-                hooks = self.api.get(uri)
-                hooks = [service for service in hooks if service["config"]["url"] == callback_url]
-                if len(hooks) == 0:
-                    uuid = None
-                else:
-                    uuid = hooks[0]["id"]
-            else:
-                uuid = repository.hook_id
-            if uuid is not None:
-                self.api.delete("repos/{owner}/{repo}/hooks/{id}".format(owner=repository.owner, repo=repository.name, id=uuid))
-
-        return repository.tested
-
     def cts_badge(self, username, reponame, branch=None, uuid=None):
         """
 
@@ -955,17 +856,12 @@ class HookUI(object):
         :return:
         :return: (Template, Kwargs, Status Code, Headers)
         """
-        repo = self.repo(
-            owner=username,
-            name=reponame,
-            branch=branch,
-            uuid=uuid
-        )
+        repo = self.get_repo_test(username, reponame, branch, uuid)
 
         if not repo:
             return None, None, 404, {}
 
-        cts, total = repo.ctsized()
+        cts, total = repo.texts_passing, repo.texts_total
         template = "svg/cts.xml"
         return template, {"cts": cts, "total": total}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
 
@@ -978,7 +874,7 @@ class HookUI(object):
         :param uuid:
         :return: (Template, Headers, Status Code)
         """
-        repo = self.repo(
+        repo = self.get_repo_test(
             owner=username,
             name=reponame,
             branch=branch,
@@ -1001,7 +897,7 @@ class HookUI(object):
         :param uuid:
         :return: (Template, Kwargs, Status Code, Headers)
         """
-        repo = self.repo(
+        repo = self.get_repo_test(
             owner=username,
             name=reponame,
             branch=branch,
@@ -1011,39 +907,54 @@ class HookUI(object):
         if not repo or not repo.coverage:
             return "svg/build.coverage.unknown.xml", {}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
 
-        score = math.floor(repo.coverage * 100) / 100
-
-        if repo.coverage > 90:
+        if repo.coverage > 90.0:
             template = "svg/build.coverage.success.xml"
-        elif repo.coverage > 75:
+        elif repo.coverage > 75.0:
             template = "svg/build.coverage.acceptable.xml"
         else:
             template = "svg/build.coverage.failure.xml"
 
-        return template, {"score": score}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
+        return template, {"score": repo.coverage}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
 
-    def repo(self, owner, name, branch=None, uuid=None):
-        """ Helper to find a repository
+    def get_repo_test(self, owner, name, branch=None, uuid=None):
+        """ Get a repository test given generic informations
 
-        :param owner:
-        :param name:
-        :param branch:
-        :param uuid:
-        :return:
+        :param owner: Name of the repository Owner
+        :type owner: str
+        :param name: Repository Name
+        :type name: str
+        :param branch: Branch to filter on
+        :type uuid: str
+        :param uuid: Travis Build Number
+        :type uuid: str
+        :return: Repoitory Test
+        :rtype: RepoTest
         """
-        repo = self.m_Repository.objects.get_or_404(owner__iexact=owner, name__iexact=name)
-        test_args = {
-            "repository": repo
-        }
-        if branch:
-            test_args["branch__iexact"] = branch
+        if uuid is not None or branch is not None:
+            repo = self.Models.RepoTest.query.join(
+                self.Models.Repository, self.Models.Repository.uuid == self.Models.RepoTest.repository
+            ).filter(
+                    self.Models.Repository.owner == owner,
+                    self.Models.Repository.name == name
+            )
 
-        if uuid:
-            test_args["uuid__iexact"] = uuid
-
-        test = self.m_RepoTest.objects(**test_args).exclude("units.logs").exclude("units.text_logs")
-
-        return test.first()
+            if branch:
+                repo = repo.filter(
+                    self.Models.RepoTest.branch == branch
+                )
+            if uuid:
+                repo = repo.filter(
+                    self.Models.RepoTest.travis_build_id == uuid
+                )
+            repo = repo.order_by(self.Models.RepoTest.run_at.desc())
+            repo = repo.first()
+        else:
+            repo = self.filter_or_404(
+                self.Models.Repository,
+                self.Models.Repository.owner == owner,
+                self.Models.Repository.name == name
+            ).last_master_test
+        return repo
 
     def history(self, username, reponame):
         """ Return the history of a repo
@@ -1052,7 +963,7 @@ class HookUI(object):
         :param reponame:
         :return:
         """
-        repository = self.m_Repository.objects.get_or_404(owner__iexact=username, name__iexact=reponame)
+        repository = self.m_Repository.objects.filter_or_404(owner__iexact=username, name__iexact=reponame)
         history = {
             "username": username,
             "reponame": reponame,
@@ -1104,7 +1015,6 @@ class HookUI(object):
             params = {"access_token": access_token}
 
         self.api.post(uri, data=data, params=params)
-
 
     @staticmethod
     def slice(elements, start, max=None):
@@ -1175,7 +1085,7 @@ class HookUI(object):
             session['user_id'] = user.uuid
         return redirect(success)
 
-    def fetch(self, method):
+    def fetch_repositories(self, method):
         """ Fetch repositories of a user
 
         :param method:
@@ -1252,3 +1162,9 @@ class HookUI(object):
     def url_for(self, route, **kwargs):
         with self.app.app_context():
             return url_for(route, **kwargs)
+
+    def filter_or_404(self, model, *ident):
+        rv = model.query.filter(*ident).first()
+        if rv is None:
+            abort(404)
+        return rv

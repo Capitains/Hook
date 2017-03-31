@@ -436,4 +436,13 @@ def model_maker(db, prefix=""):
         def __repr__(self):
             return "{}:{}".format(self.lang, self.count)
 
-    return User, Repository, RepoTest, RepoOwnership, UnitTest, WordCount
+    class Models(object):
+        def __init__(self):
+            self.User = User
+            self.Repository = Repository
+            self.RepoTest = RepoTest
+            self.RepoOwnership = RepoOwnership
+            self.UnitTest = UnitTest
+            self.WordCount = WordCount
+
+    return Models()

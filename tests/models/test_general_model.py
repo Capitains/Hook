@@ -15,7 +15,13 @@ class TestModels(TestCase):
         self.db = SQLAlchemy(app)
 
         # Models
-        self.User, self.Repository, self.RepoTest, self.RepoOwnership, self.UnitTest, self.WordCount = model_maker(self.db)
+        Models = model_maker(self.db)
+        self.User = Models.User
+        self.Repository = Models.Repository
+        self.RepoTest = Models.RepoTest
+        self.RepoOwnership = Models.RepoOwnership
+        self.UnitTest = Models.UnitTest
+        self.WordCount = Models.WordCount
         self.db.create_all()
         self.client = app.test_client()
         self.former_unit = {
