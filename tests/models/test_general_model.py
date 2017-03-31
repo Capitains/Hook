@@ -311,7 +311,7 @@ class TestModels(TestCase):
         )
         self.db.session.add(test)
         self.commit()
-        test.save_word_counts({
+        test.save_words_count({
             "eng": 55555,
             "lat": 7899984,
             "78945": 78945
@@ -341,7 +341,7 @@ class TestModels(TestCase):
         )
         self.db.session.add(test)
         self.commit()
-        test.save_word_counts({
+        test.save_words_count({
             "eng": 55555,
             "lat": 7899984,
             "ger": 78945
@@ -370,37 +370,37 @@ class TestModels(TestCase):
                 "ger": 78945
             }
         )
-        self.assertCountEqual(
+        self.maxDiff = None
+        for level in diff.keys():
+            diff[level] = {key: val for key, val in diff[level].items()}
+        self.assertEqual(
             diff,
             {
                 "Global": {
                     "Changed": [
-                        ('texts_passing', '+1'),
                         ('coverage', '-0.01'),
+                        ('metadata_total', '+5'),
                         ('nodes_count', '-44'),
-                        ('metadata_total', '+5')
+                        ('texts_passing', '+1')
                     ],
                 },
                 "Units": {
                     "Changed": [
-                        ('data/tlg0015/tlg001/__cts__.xml', 'Passing'),
+                        ('data/tlg0015/tlg001/__cts__.xml', 'Failing'),
                         ('data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml', 'Passing'),
-                        ('nodes_count', '-44'),
-                        ('metadata_total', '+5')
+                        ('data/tlg0015/tlg002/__cts__.xml', 'Failing'),
                     ],
-                    "New": [('data/tlg0015/tlg002/__cts__.xml', '')],
-                    "Deleted": [('data/tlg0015/__cts__.xml', '')]
+                    "New": [('data/tlg0015/tlg002/__cts__.xml', 'New')],
+                    "Deleted": [('data/tlg0015/__cts__.xml', 'Deleted')]
                 },
                 "Words": {
                     "Changed": [
+                        ('eng', '+1'),
                         ('lat', '-11'),
-                        ('eng', '+1')
-                    ],
-                    "New": [('data/tlg0015/tlg002/__cts__.xml', '')],
-                    "Deleted": [('data/tlg0015/__cts__.xml', '')]
+                    ]
                 }
             },
-            "Diff should be well computed"
+            "Diff should be well computed with 0.01 diff on coverage"
         )
         sleep(0.1)
 
@@ -421,46 +421,256 @@ class TestModels(TestCase):
                 "ger": 78945
             }
         )
-        self.assertCountEqual(
-            diff['Global'],
+
+        self.maxDiff = None
+        # For test purposes, we changed defaultdict to dict
+        for level in diff.keys():
+            diff[level] = {key: val for key, val in diff[level].items()}
+        self.assertEqual(
+            diff,
             {
-                "Changed": [
-                    ('texts_passing', '+1'),
-                    ('nodes_count', '-44'),
-                    ('metadata_total', '+5')
-                ],
+                "Global": {
+                    "Changed": [
+                        ('metadata_total', '+5'),
+                        ('nodes_count', '-44'),
+                        ('texts_passing', '+1'),
+                    ],
+                },
+                "Units": {
+                    "Changed": [
+                        ('data/tlg0015/tlg001/__cts__.xml', 'Failing'),
+                        ('data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml', 'Passing'),
+                        ('data/tlg0015/tlg002/__cts__.xml', 'Failing'),
+                    ],
+                    "New": [('data/tlg0015/tlg002/__cts__.xml', 'New')],
+                    "Deleted": [('data/tlg0015/__cts__.xml', 'Deleted')]
+                },
+                "Words": {
+                    "Changed": [
+                        ('eng', '+1'),
+                        ('lat', '+6')
+                    ]
+                },
             },
+            "Diff should be well computed with really small diff on coverage"
         )
 
-        self.assertCountEqual(
-            diff['Units'],
-            {
-                "Changed": [
-                    ('data/tlg0015/tlg001/__cts__.xml', 'Passing'),
-                    ('data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml', 'Passing'),
-                    ('nodes_count', '-44'),
-                    ('metadata_total', '+5')
-                ],
-                "New": [('data/tlg0015/tlg002/__cts__.xml', '')],
-                "Deleted": [('data/tlg0015/__cts__.xml', '')]
-            },
+    def test_diff_table(self):
+        pi, ll = self.createPonteineptique(), self.createLatinLit()
+        self.commit()
+        # Create first test
+        test = self.RepoTest(
+            branch="master",
+            travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544", travis_build_id="27",
+            travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            texts_total=637, texts_passing=635, metadata_total=720, metadata_passing=719, coverage=99.79,
+            nodes_count=113179, repository=ll.uuid
         )
-        self.assertCountEqual(
-            diff['Words'],
+        self.db.session.add(test)
+        self.commit()
+        test.save_words_count({
+            "eng": 55555,
+            "lat": 7899984,
+            "ger": 78945
+        })
+        test.save_units(self.former_unit)
+        self.commit()
+        sleep(0.1)
+        # Create second test
+        self.former_unit["data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml"] = True
+        self.former_unit["data/tlg0015/tlg001/__cts__.xml"] = False
+        self.former_unit["data/tlg0015/tlg002/__cts__.xml"] = False
+        del self.former_unit["data/tlg0015/__cts__.xml"]
+        second_repo = self.RepoTest(
+            branch="n1",
+            travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544", travis_build_id="27",
+            travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            texts_total=637, texts_passing=636, metadata_total=725, metadata_passing=719, coverage=99.78,
+            nodes_count=113135, repository=ll.uuid
+        )
+        self.db.session.add(second_repo)
+        self.db.session.commit()
+        diff = second_repo.table(second_repo.diff(
+            test, self.former_unit, {
+                "eng": 55556,
+                "lat": 7899973,
+                "ger": 78945
+            }
+        ))
+        self.assertEqual(diff, """## Global
+
+| Changed          |   Status |
+|:-----------------|---------:|
+| `coverage`       |    -0.01 |
+| `metadata_total` |     5    |
+| `nodes_count`    |   -44    |
+| `texts_passing`  |     1    |
+
+## Words
+
+| Changed   |   Status |
+|:----------|---------:|
+| `eng`     |       +1 |
+| `lat`     |      -11 |
+
+## Units
+
+| Changed                                           | Status   |
+|:--------------------------------------------------|:---------|
+| `data/tlg0015/__cts__.xml`                        | Deleted  |
+| `data/tlg0015/tlg002/__cts__.xml`                 | New      |
+| `data/tlg0015/tlg001/__cts__.xml`                 | Failing  |
+| `data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml` | Passing  |
+| `data/tlg0015/tlg002/__cts__.xml`                 | Failing  |""")
+
+    def test_register_test(self):
+        """ Check that register test produce all necessary informations """
+        pi, ll = self.createPonteineptique(), self.createLatinLit()
+        self.commit()
+        pi.repositories.append(ll)
+        test, diff = ll.register_test(
+            branch="master",
+            travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544",
+            travis_build_id="27",
+            travis_user="sonofmun",
+            travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            texts_total=637,
+            texts_passing=635,
+            metadata_total=720,
+            metadata_passing=719,
+            coverage=99.79,
+            nodes_count=113179,
+            units=self.former_unit,
+            words_count={
+                "eng": 125,
+                "lat": 956
+            }
+        )
+        self.assertEqual(diff, None, "There is no diff because it's first test")
+        sleep(0.1)
+        # We suppose we create a new branch and compare
+        # Create second test
+        test2_units = {key:val for key, val in self.former_unit.items()}
+        test2_units["data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml"] = True
+        test2_units["data/tlg0015/tlg001/__cts__.xml"] = False
+        test2_units["data/tlg0015/tlg002/__cts__.xml"] = False
+        del test2_units["data/tlg0015/__cts__.xml"]
+        test2, diff = ll.register_test(
+            branch="n1",
+            travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544", travis_build_id="27",
+            travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            texts_total=637, texts_passing=636, metadata_total=725, metadata_passing=719, coverage=99.78,
+            nodes_count=113135, units=test2_units, words_count={
+                "eng": 55556,
+                "lat": 7899973,
+                "ger": 78945
+            }
+        )
+        self.assertEqual(
+            ll.last_master_test, test, "Units should be ok"
+        )
+        self.maxDiff = None
+        # For test purposes, we changed defaultdict to dict
+        for level in diff.keys():
+            diff[level] = {key: val for key, val in diff[level].items()}
+        self.assertEqual(
+            diff,
             {
-                "Changed": [
-                    ('lat', '+3'),
-                    ('eng', '+1')
-                ]
+                "Global": {
+                    "Changed": [
+                        ('coverage', '-0.01'),
+                        ('metadata_total', '+5'),
+                        ('nodes_count', '-44'),
+                        ('texts_passing', '+1'),
+                    ],
+                },
+                "Units": {
+                    "Changed": [
+                        ('data/tlg0015/tlg001/__cts__.xml', 'Failing'),
+                        ('data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml', 'Passing'),
+                        ('data/tlg0015/tlg002/__cts__.xml', 'Failing')
+                    ],
+                    "New": [('data/tlg0015/tlg002/__cts__.xml', 'New')],
+                    "Deleted": [('data/tlg0015/__cts__.xml', 'Deleted')]
+                },
+                "Words": {
+                    "Changed": [
+                        ('eng', '+55431'),
+                        ('lat', '+7899017'),
+                    ],
+                    "New": [("ger", 'New')]
+                }
             },
             "Diff should be well computed"
         )
+        # Ensure we still have the same units inside
+        self.assertEqual(test.units_as_dict, self.former_unit, "Old units should still be okay")
+        self.assertEqual(test2.units, [], "There should be no units registered for test2")
+        self.assertEqual(test.words_count_as_dict, {"eng": 125, "lat": 956}, "Old wordcount should still be okay")
+        self.assertEqual(test2.words_count, [], "There should be no wordcount registered for test2")
+        sleep(0.1)
+        """
+            Second part :
+                - We fake a pull request changing master then check that new units are the correct ones
 
-        {'data/tlg0015/tlg002/__cts__.xml': False, 'data/stoa0033a/tlg028/__cts__.xml': True,
-         'data/tlg0018/tlg001/__cts__.xml': True, 'data/stoa0033a/tlg028/stoa0033a.tlg028.1st1K-grc1.xml': True,
-         'data/tlg0018/__cts__.xml': True, 'data/tlg0015/tlg001/__cts__.xml': False,
-         'data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml': True, 'data/stoa0121/stoa001/__cts__.xml': False,
-         'data/stoa0121/stoa001/stoa0121.stoa001.opp-grc1.xml': False, 'data/stoa0033a/__cts__.xml': True,
-         'data/tlg0018/tlg001/tlg0018.tlg001.opp-grc1.xml': False,
-         'data/stoa0033a/tlg043/stoa0033a.tlg043.1st1K-grc1.xml': True, 'data/stoa0121/__cts__.xml': False,
-         'data/stoa0033a/tlg043/__cts__.xml': True}
+        """
+        test3_units = test2_units
+        test3, diff = ll.register_test(
+            branch="master",
+            travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544", travis_build_id="28",
+            travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            texts_total=637, texts_passing=636, metadata_total=725, metadata_passing=719, coverage=99.78,
+            nodes_count=113135, units=test3_units, words_count={
+                "eng": 55556,
+                "lat": 7899973,
+                "ger": 78945
+            }
+        )
+        self.assertEqual(
+            diff,
+            {
+                "Global": {
+                    "Changed": [
+                        ('coverage', '-0.01'),
+                        ('metadata_total', '+5'),
+                        ('nodes_count', '-44'),
+                        ('texts_passing', '+1'),
+                    ],
+                },
+                "Units": {
+                    "Changed": [
+                        ('data/tlg0015/tlg001/__cts__.xml', 'Failing'),
+                        ('data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml', 'Passing'),
+                        ('data/tlg0015/tlg002/__cts__.xml', 'Failing')
+                    ],
+                    "New": [('data/tlg0015/tlg002/__cts__.xml', 'New')],
+                    "Deleted": [('data/tlg0015/__cts__.xml', 'Deleted')]
+                },
+                "Words": {
+                    "Changed": [
+                        ('eng', '+55431'),
+                        ('lat', '+7899017'),
+                    ],
+                    "New": [("ger", 'New')]
+                }
+            },
+            "Diff should be well computed"
+        )
+        # Ensure we still have the same units inside
+        self.assertEqual(ll.last_master_test, test3, "New test should overwrite old test")
+        self.assertEqual(test.units_as_dict, {}, "Old units should be removed")
+        self.assertEqual(test.dyn_units.all(), [], "Old units should be emptied")
+        self.assertEqual(ll.last_master_test.units_as_dict, test3_units, "New units should should be saved")
+        self.assertEqual(test3.units_as_dict, test3_units, "New units should should be saved in current RepoTest")
+        self.assertEqual(test2.units, [], "There should be no units registered for test2")
+
+        self.assertEqual(
+            ll.last_master_test.words_count_as_dict, {"eng": 55556, "lat": 7899973, "ger": 78945},
+            "Old wordcount should  be overwritten"
+        )
+        self.assertEqual(
+            test3.words_count_as_dict, {"eng": 55556, "lat": 7899973, "ger": 78945},
+            "New repotest should be saved"
+        )
+        self.assertEqual(test2.words_count, [], "There should be no wordcount registered for test2")
+        self.assertEqual(test.words_count, [], "There should be no wordcount registered for old last master")

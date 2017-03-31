@@ -14,7 +14,8 @@ setup(
         "flask-login==0.2.11",
         "GitHub-Flask==2.1.1",
         "unicode-slugify==0.1.3",
-        "Flask-SQLAlchemy==2.2"
+        "Flask-SQLAlchemy==2.2",
+        "tabulate==0.7.7"
     ],
     tests_require=[
         "Flask-Testing==0.4.2"

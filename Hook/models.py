@@ -2,9 +2,11 @@ __author__ = 'Thibault Clerice'
 
 import datetime
 import re
+from tabulate import tabulate
 from Hook.exceptions import *
 from collections import defaultdict
 from math import isclose
+from operator import itemgetter
 
 
 pr_finder = re.compile("pull\/([0-9]+)\/head")
@@ -181,30 +183,36 @@ def model_maker(db, prefix=""):
             :param metadata_total: metadata_total
             :type metadata_total: Int
             :param metadata_passing: metadata_passing
-            :type metadata_passing: Int
-            :param coverage: coverage
-            :type coverage: Flo
+            :type metadata_passing: int
+            :param coverage: Coverage of
+            :type coverage: float
             :param nodes_count: nodes_count
-            :type nodes_count: Int
+            :type nodes_count: int
             :param units: Dictionary Path->Status
             :type units: dict
+            :param words_count: Dictionary LanguageCode -> Number of words
+            :type words_count: dict
             :return:
             """
+            last_master = self.last_master_test
             repo = RepoTest(
                 repository=self.uuid, branch=branch, travis_uri=travis_uri,
                 travis_build_id=travis_build_id, travis_user=travis_user, travis_user_gravatar=travis_user_gravatar,
                 texts_total=texts_total, texts_passing=texts_passing, metadata_total=metadata_total,
                 metadata_passing=metadata_passing, coverage=coverage, nodes_count=nodes_count
             )
+            diff = None
+            if last_master is not None:
+                diff = repo.diff(self.last_master_test, units, words_count)
 
-            diff = repo.diff(self.last_master_test, units, words_count)
-
-            if words_count is not None:
-                repo.save_words_count(words_count, _commit=True)
-            if branch == self.main_branch:
-                repo.save_units(units, _commit=True)
-
+            db.session.add(repo)
             db.session.commit()
+
+            if self.main_branch == branch:
+                if words_count is not None:
+                    repo.save_words_count(words_count, _last_master=last_master)
+                repo.save_units(units, _commit=True, _last_master=last_master)
+
             return repo, diff
 
     class RepoTest(db.Model):
@@ -235,10 +243,14 @@ def model_maker(db, prefix=""):
             "WordCount",
             backref=db.backref('word_count')
         )
+        repository_dyn = db.relationship(
+            "Repository",
+            backref=db.backref('repo')
+        )
 
         dyn_units = db.relationship(
             "UnitTest",
-            backref=db.backref('unit_test_dyn'), lazy="dynamic"
+            backref=db.backref('unit_test_dyn'), lazy="dynamic",
         )
         dyn_words = db.relationship(
             "WordCount",
@@ -248,30 +260,33 @@ def model_maker(db, prefix=""):
         def __repr__(self):
             return self.travis_build_id
 
-        def save_units(self, unit_dict, _force_clear=True, _commit=True):
+        def save_units(self, unit_dict, _last_master=None, _force_clear=True, _commit=True):
             """ Save a dictionary of units in the database
 
             :param unit_dict:
+            :type unit_dict:
             :param _force_clear: Force removal of former scores
             :param _commit: Automatically commit
             :return:
             """
             if _force_clear:
-                # We need to do something
-                _ = 0
+                if _last_master is not None:
+                    _last_master.dyn_units.delete()
             for path, status in unit_dict.items():
                 u = UnitTest(path=path, status=status)
                 self.units.append(u)
             if _commit is True:
                 db.session.commit()
 
-        def save_word_counts(self, words_count, _commit=True):
+        def save_words_count(self, words_count, _last_master=None, _force_clear=True, _commit=True):
             """ Save a dictionary of units in the database
 
             :param words_count: Key-value pairs of lang code + word count
             :param _commit: Automatically commit
             :return:
             """
+            if _force_clear and _last_master is not None:
+                _last_master.dyn_words.delete()
             for lang, count in words_count.items():
                 u = WordCount(lang=lang, count=count)
                 self.words_count.append(u)
@@ -316,29 +331,40 @@ def model_maker(db, prefix=""):
                     elif me[key] != you[key]:
                         if isinstance(me[key], bool):
                             current["Changed"].append(self.pass_fail_object(key, me[key]))
-                        elif isinstance(me[key], bool):
-                            if not isclose(me[key], you[key], 0.0001):
+                        elif isinstance(me[key], float):
+                            if not isclose(me[key], you[key], rel_tol=0.0001):
                                 current["Changed"].append(self.diff_int_object(key, me[key] - you[key]))
                         else:
                             current["Changed"].append(self.diff_int_object(key, me[key]-you[key]))
+                for key, val in current.items():
+                    current[key] = sorted(val, key=itemgetter(0))
                 ret[name] = current
             return ret
 
-
         @staticmethod
-        def readableDiff(*dicts):
-            """ Compute the diff between two repos given another repo and current repo units and word count
+        def table(diff_dict, mode="md"):
+            """ Takes a diff dict and creates a table from it
 
-            :param dicts: DeepDiff output
-            :type last_master: RepoTest
-            :param units:
-            :param words_count:
-            :return:
+            :param diff_dict: Diff dict from self.diff
+            :param mode: md or html given the wished output
+            :return: Table as string
             """
-            for diff in dicts:
-                if "values_changed" in diff:
-                    for key, value in diff["values_changed"].items():
-                        yield key.replace("root['", "").replace("']", "")
+            if mode == "md":
+                mode = "pipe"
+            output = []
+            for name in ["Global", "Words", "Units"]:
+                table = diff_dict[name]
+                if len(table["New"] + table["Deleted"] + table["Changed"]) > 0:
+                    output.append("## %s" % name)
+                    output.append(
+                        tabulate(
+                            [["`"+item+"`", value] for item, value in sorted((table["New"] + table["Deleted"]), key=itemgetter(0))] + \
+                            [["`"+item+"`", value] for item, value in sorted(table["Changed"], key=itemgetter(0))],
+                            ["Changed", "Status"],
+                            tablefmt=mode
+                        )
+                    )
+            return "\n\n".join(output)
 
         @property
         def dict(self):
@@ -353,17 +379,17 @@ def model_maker(db, prefix=""):
 
         @staticmethod
         def new_object(name):
-            return name, ""
+            return name, "New"
 
         @staticmethod
         def del_object(name):
-            return name, ""
+            return name, "Deleted"
 
         @staticmethod
         def pass_fail_object(name, diff):
             text_diff = "Passing"
             if diff is False:
-                text_diff = "Failed"
+                text_diff = "Failing"
             return name, text_diff
 
         @staticmethod
