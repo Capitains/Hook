@@ -1,11 +1,8 @@
-## Licenses 
+Hook (Web Interface for HookTest+Travis)
+====
+[![Build Status](https://travis-ci.org/Capitains/Hook.svg?branch=master)](https://travis-ci.org/Capitains/Hook)
+[![Coverage Status](https://coveralls.io/repos/github/Capitains/Hook/badge.svg?branch=master)](https://coveralls.io/github/Capitains/Hook?branch=master)
 
-### TEI and EpiDoc Schema
+## What's Hook ?
 
-The TEI Schema is copyright the TEI Consortium
-    (http://www.tei-c.org/Guidelines/access.xml#body.1_div.2).
-    To the extent that the EpiDoc ODD and schema have been customized and
-    amount to transformative versions of the original schema, they are
-    copyright Gabriel Bodard and the other contributors (as listed in
-    tei:revisionDesc). See LICENSE.txt for license details.
-
+## Why should you use it ?
