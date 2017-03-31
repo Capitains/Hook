@@ -370,16 +370,38 @@ class TestModels(TestCase):
                 "ger": 78945
             }
         )
-        self.assertCountEqual(diff,
-                         {'Global': [('Changed', 'texts_passing', '+1'), ('Changed', 'coverage', '-0.01'),
-                                     ('Changed', 'nodes_count', '-44'), ('Changed', 'metadata_total', '+5')],
-                          'Units': [('Changed', 'data/tlg0015/tlg001/__cts__.xml', 'Passing'),
-                                    ('Deleted', 'data/tlg0015/__cts__.xml', ''),
-                                    ('Changed', 'data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml', 'Passing'),
-                                    ('New', 'data/tlg0015/tlg002/__cts__.xml', '')],
-                          'Words': [('Changed', 'lat', '-11'), ('Changed', 'eng', '+1')]},
-                         "Diff should be well computed"
-                         )
+        self.assertCountEqual(
+            diff,
+            {
+                "Global": {
+                    "Changed": [
+                        ('texts_passing', '+1'),
+                        ('coverage', '-0.01'),
+                        ('nodes_count', '-44'),
+                        ('metadata_total', '+5')
+                    ],
+                },
+                "Units": {
+                    "Changed": [
+                        ('data/tlg0015/tlg001/__cts__.xml', 'Passing'),
+                        ('data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml', 'Passing'),
+                        ('nodes_count', '-44'),
+                        ('metadata_total', '+5')
+                    ],
+                    "New": [('data/tlg0015/tlg002/__cts__.xml', '')],
+                    "Deleted": [('data/tlg0015/__cts__.xml', '')]
+                },
+                "Words": {
+                    "Changed": [
+                        ('lat', '-11'),
+                        ('eng', '+1')
+                    ],
+                    "New": [('data/tlg0015/tlg002/__cts__.xml', '')],
+                    "Deleted": [('data/tlg0015/__cts__.xml', '')]
+                }
+            },
+            "Diff should be well computed"
+        )
         sleep(0.1)
 
         # Create third test
@@ -399,14 +421,46 @@ class TestModels(TestCase):
                 "ger": 78945
             }
         )
-        print(diff)
-        self.assertEqual(diff,
-                         {'Global': [('Changed', 'texts_passing', '+1'),
-                                     ('Changed', 'nodes_count', '-44'), ('Changed', 'metadata_total', '+5')],
-                          'Units': [('Changed', 'data/tlg0015/tlg001/__cts__.xml', 'Passing'),
-                                    ('Deleted', 'data/tlg0015/__cts__.xml', ''),
-                                    ('Changed', 'data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml', 'Passing'),
-                                    ('New', 'data/tlg0015/tlg002/__cts__.xml', '')],
-                          'Words': [('Changed', 'lat', '+3'), ('Changed', 'eng', '+1')]},
-                         "Diff should be well computed"
-                         )
+        self.assertCountEqual(
+            diff['Global'],
+            {
+                "Changed": [
+                    ('texts_passing', '+1'),
+                    ('nodes_count', '-44'),
+                    ('metadata_total', '+5')
+                ],
+            },
+        )
+
+        self.assertCountEqual(
+            diff['Units'],
+            {
+                "Changed": [
+                    ('data/tlg0015/tlg001/__cts__.xml', 'Passing'),
+                    ('data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml', 'Passing'),
+                    ('nodes_count', '-44'),
+                    ('metadata_total', '+5')
+                ],
+                "New": [('data/tlg0015/tlg002/__cts__.xml', '')],
+                "Deleted": [('data/tlg0015/__cts__.xml', '')]
+            },
+        )
+        self.assertCountEqual(
+            diff['Words'],
+            {
+                "Changed": [
+                    ('lat', '+3'),
+                    ('eng', '+1')
+                ]
+            },
+            "Diff should be well computed"
+        )
+
+        {'data/tlg0015/tlg002/__cts__.xml': False, 'data/stoa0033a/tlg028/__cts__.xml': True,
+         'data/tlg0018/tlg001/__cts__.xml': True, 'data/stoa0033a/tlg028/stoa0033a.tlg028.1st1K-grc1.xml': True,
+         'data/tlg0018/__cts__.xml': True, 'data/tlg0015/tlg001/__cts__.xml': False,
+         'data/tlg0015/tlg001/tlg0015.tlg001.opp-grc1.xml': True, 'data/stoa0121/stoa001/__cts__.xml': False,
+         'data/stoa0121/stoa001/stoa0121.stoa001.opp-grc1.xml': False, 'data/stoa0033a/__cts__.xml': True,
+         'data/tlg0018/tlg001/tlg0018.tlg001.opp-grc1.xml': False,
+         'data/stoa0033a/tlg043/stoa0033a.tlg043.1st1K-grc1.xml': True, 'data/stoa0121/__cts__.xml': False,
+         'data/stoa0033a/tlg043/__cts__.xml': True}

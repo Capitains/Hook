@@ -3,7 +3,7 @@ __author__ = 'Thibault Clerice'
 import datetime
 import re
 from Hook.exceptions import *
-from deepdiff import DeepDiff
+from collections import defaultdict
 from math import isclose
 
 
@@ -304,23 +304,23 @@ def model_maker(db, prefix=""):
             ]
             ret = {}
             for me, you, name in items:
-                current = []
+                current = defaultdict(list)
                 complete_keys = set(list(me.keys()) + list(you.keys()))
                 for key in complete_keys:
                     if key not in you:
-                        current.append(self.new_object(key))
+                        current["New"].append(self.new_object(key))
                         if isinstance(me[key], bool):
-                            current.append(self.pass_fail_object(key, me[key]))
+                            current["Changed"].append(self.pass_fail_object(key, me[key]))
                     elif key not in me:
-                        current.append(self.del_object(key))
+                        current["Deleted"].append(self.del_object(key))
                     elif me[key] != you[key]:
                         if isinstance(me[key], bool):
-                            current.append(self.pass_fail_object(key, me[key]))
+                            current["Changed"].append(self.pass_fail_object(key, me[key]))
                         elif isinstance(me[key], bool):
                             if not isclose(me[key], you[key], 0.0001):
-                                current.append(self.diff_int_object(key, me[key] - you[key]))
+                                current["Changed"].append(self.diff_int_object(key, me[key] - you[key]))
                         else:
-                            current.append(self.diff_int_object(key, me[key]-you[key]))
+                            current["Changed"].append(self.diff_int_object(key, me[key]-you[key]))
                 ret[name] = current
             return ret
 
@@ -353,18 +353,18 @@ def model_maker(db, prefix=""):
 
         @staticmethod
         def new_object(name):
-            return "New", name, ""
+            return name, ""
 
         @staticmethod
         def del_object(name):
-            return "Deleted", name, ""
+            return name, ""
 
         @staticmethod
         def pass_fail_object(name, diff):
-            diff = "Passing"
+            text_diff = "Passing"
             if diff is False:
-                diff = "Failed"
-            return "Changed", name, "{}".format(diff)
+                text_diff = "Failed"
+            return name, text_diff
 
         @staticmethod
         def diff_int_object(name, diff):
@@ -374,7 +374,7 @@ def model_maker(db, prefix=""):
                 diff = str(diff)
             if not diff.startswith("-"):
                 diff = "+"+diff
-            return "Changed", name, diff
+            return name, diff
 
         @property
         def words_count_as_dict(self):
