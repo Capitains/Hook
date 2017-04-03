@@ -43,10 +43,11 @@ def model_maker(db, prefix=""):
 
         """
         uuid = db.Column(db.Integer, primary_key=True)
-        email = db.Column(db.String(255), unique=True, nullable=False)
+        email = db.Column(db.String(255), unique=True, nullable=True)
         login = db.Column(db.String(255), unique=True, nullable=False)
         git_id = db.Column(db.String(255))
         github_access_token = db.Column(db.String(200), nullable=False)
+        avatar = db.Column(db.String(2000), nullable=True)
         refreshed = db.Column(db.Date(), default=None)
         repositories = db.relationship(
             'Repository', secondary=RepoOwnership,
@@ -74,6 +75,10 @@ def model_maker(db, prefix=""):
         @property
         def active_repositories(self):
             return self.dyn_repositories.filter(Repository.active == True).all()
+
+        @property
+        def is_authenticated(self):
+            return True
 
         def __repr__(self):
             return self.login

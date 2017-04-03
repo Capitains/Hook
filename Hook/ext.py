@@ -21,6 +21,7 @@ class HookUI(object):
     ROUTES = [
         ('/', "r_index", ["GET"]),
         ('/login', "r_login", ["GET"]),
+        ('/login/error', "r_login_error", ["GET"]),
         ('/logout', "r_logout", ["GET"]),
 
         ('/api/github/callback', "r_github_oauth", ["GET"]),
@@ -208,12 +209,17 @@ class HookUI(object):
         """
         return self.logout(self.url_for(".index"))
 
+    def r_login_error(self):
+        """ Route for logout
+        """
+        return request.query_string
+
     def r_github_oauth(self, *args, **kwargs):
         """ GitHub oauth route
         """
         def func(access_token):
             next_uri = request.args.get('next') or self.url_for('.index')
-            return self.authorize(access_token, request, success=next_uri, error=self.url_for(".index"))
+            return self.authorize(access_token, request, success=next_uri, error=self.url_for(".login_error"))
 
         authorize = self.api.authorized_handler(func)
         return authorize(*args, **kwargs)
@@ -1100,20 +1106,21 @@ class HookUI(object):
         if access_token is None:
             return redirect(error)
 
-        user = self.m_User.objects(github_access_token=access_token)
-        if len(user) == 0:
+        user = self.Models.User.query.filter(self.Models.User.github_access_token == access_token).first()
+
+        if user is None:
             # Make a call to the API
-            more = self.api.get("user", params={"access_token": access_token})
-            user = self.m_User(
-                uuid=str(uuid4()),
+            more = self.api.get("user", params={"access_token": access_token}).json()
+            kwargs = dict(git_id=more["id"], login=more["login"])
+            if "email" in more:
+                kwargs["email"] = more["email"]
+
+            user = self.Models.User(
                 github_access_token=access_token,
-                mail=more["email"],
-                git_id=more["id"],
-                login=more["login"]
+                **kwargs
             )
-            user.save()
-        else:
-            user = user.first()
+            self.db.session.add(user)
+            self.db.session.commit()
 
         with self.app.app_context():
             session['user_id'] = user.uuid
@@ -1157,6 +1164,7 @@ class HookUI(object):
         :return: redirect(url_redirect)
         """
         self.session.pop('user_id', None)
+        del g.user
         return redirect(url_redirect)
 
     @property

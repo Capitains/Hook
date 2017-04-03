@@ -14,6 +14,7 @@
         <li class="active"><a href="/">Home</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
+        {{current_user}}
         {% if current_user.is_authenticated == True %}
           <li><a class="navbar-brand" href="#" style="padding-top:5px; padding-bottom: 5px;"><img style=" border-radius: 20px;" src="https://avatars.githubusercontent.com/{{ current_user.login }}?s=40" /></a></li>
           <li><a href="#">Hi {{ current_user.login }}!</a></li>

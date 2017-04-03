@@ -18,7 +18,8 @@ setup(
         "tabulate==0.7.7"
     ],
     tests_require=[
-        "Flask-Testing==0.4.2"
+        "mock==2.0.0",
+        "requests-mock==1.3.0"
     ],
     test_suite="tests",
     include_package_data=True,
