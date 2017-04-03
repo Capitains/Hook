@@ -33,12 +33,14 @@ class HookUI(object):
         ("/api/rest/v1.0/user/repositories", "r_api_user_repositories", ["GET", "POST"]),
         ("/api/rest/v1.0/user/repositories/<owner>/<repository>", "r_api_user_repository_switch", ["PUT"]),
 
-        ('/api/rest/v1.0/code/<owner>/<repository>/status.svg', "r_repo_badge_status", ["GET"]),
-        ('/api/hook/v2.0/badges/<owner>/<repository>/cts.svg', "r_repo_cts_status", ["GET"]),
+        ('/api/hook/v2.0/badges/<owner>/<repository>/texts.svg', "r_repo_texts_count", ["GET"]),
+        ('/api/hook/v2.0/badges/<owner>/<repository>/metadata.svg', "r_repo_metadata_count", ["GET"]),
+        ('/api/hook/v2.0/badges/<owner>/<repository>/words.svg', "r_repo_words_count", ["GET"]),
         ('/api/hook/v2.0/badges/<owner>/<repository>/coverage.svg', "r_repo_badge_coverage", ["GET"]),
+
         ('/api/rest/v1.0/code/<owner>/<repository>/test', "r_api_test_generate_route", ["GET"]),
-        ('/api/rest/v1.0/code/<owner>/<repository>', "r_api_repo_history", ["GET", "DELETE"]),
         ('/api/rest/v1.0/code/<owner>/<repository>/unit', "r_api_repo_unit_history", ["GET"]),
+        ('/api/rest/v1.0/code/<owner>/<repository>', "r_api_repo_history", ["GET", "DELETE"]),
 
         ("/favicon.ico", "r_favicon", ["GET"]),
         ("/favicon/<icon>", "r_favicon_specific", ["GET"])
@@ -284,13 +286,43 @@ class HookUI(object):
         else:
             return "", status, {}
 
-    def r_repo_cts_status(self, owner, repository):
-        """ Get a Badge for a repo
+    def r_repo_texts_count(self, owner, repository):
+        """ Get a Text Count Badge for a repository
 
         :param owner: Name of the user
         :param repository: Name of the repository
         """
-        response, kwargs, status, header = self.cts_badge(owner, repository, branch=request.args.get("branch"), uuid=request.args.get("uuid"))
+        response, kwargs, status, header = self.texts_count_badge(owner, repository, branch=request.args.get("branch"), uuid=request.args.get("uuid"))
+        if response:
+            return render_template(response, **kwargs), status, header
+        else:
+            return "", status, {}
+
+    def r_repo_metadata_count(self, owner, repository):
+        """ Get a Metadata Count Badge for a repository
+
+        :param owner: Name of the user
+        :param repository: Name of the repository
+        """
+        response, kwargs, status, header = self.metadata_count_badge(
+            owner, repository,
+            branch=request.args.get("branch"), uuid=request.args.get("uuid")
+        )
+        if response:
+            return render_template(response, **kwargs), status, header
+        else:
+            return "", status, {}
+
+    def r_repo_words_count(self, owner, repository):
+        """ Get a Words Count Badge for a repository
+
+        :param owner: Name of the user
+        :param repository: Name of the repository
+        """
+        response, kwargs, status, header = self.words_count_badge(
+            owner, repository,
+            language=request.args.get("lang")
+        )
         if response:
             return render_template(response, **kwargs), status, header
         else:
@@ -846,56 +878,82 @@ class HookUI(object):
         response.status_code = code
         return response
 
-    def cts_badge(self, username, reponame, branch=None, uuid=None):
-        """
+    def words_count_badge(self, username, reponame, language=None):
+        """ Return the necessary information to build a text count badge
 
-        :param username:
-        :param reponame:
-        :param branch:
-        :param uuid:
-        :return:
+        :param username: Name of the repository owner
+        :param reponame: Name of the repository
         :return: (Template, Kwargs, Status Code, Headers)
+        :rtype: (str, dict, int, dict)
+        """
+        repo = self.get_repo_test(username, reponame)
+
+        if not repo or len(repo.words_count) == 0:
+            return None, None, 404, {}
+
+        if language is None:
+            cnt = sum([wc.count for wc in repo.words_count])
+            language = "Words"
+        else:
+            wc = [wc for wc in repo.words_count if wc.lang == language]
+            if len(wc) == 0:
+                return None, None, 404, {}
+            else:
+                cnt = wc[0].count
+
+        template = "svg/wordcount.xml"
+        return template, {"language": language, "cnt": cnt}, 200, \
+                {'Content-Type': 'image/svg+xml; charset=utf-8'}
+
+    def texts_count_badge(self, username, reponame, branch=None, uuid=None):
+        """ Return the necessary information to build a text count badge
+
+        :param username: Name of the repository owner
+        :param reponame: Name of the repository
+        :param branch: Name of the branch
+        :param uuid: Travis Build Id
+        :return: (Template, Kwargs, Status Code, Headers)
+        :rtype: (str, dict, int, dict)
         """
         repo = self.get_repo_test(username, reponame, branch, uuid)
 
         if not repo:
             return None, None, 404, {}
 
-        cts, total = repo.texts_passing, repo.texts_total
-        template = "svg/cts.xml"
-        return template, {"cts": cts, "total": total}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
+        cnt, total = repo.texts_passing, repo.texts_total
+        template = "svg/object_count.xml"
+        return template, {"object_name": "Texts", "cnt": cnt, "total": total}, 200, \
+                {'Content-Type': 'image/svg+xml; charset=utf-8'}
 
-    def status_badge(self, username, reponame, branch=None, uuid=None):
-        """ Create a status badge
+    def metadata_count_badge(self, username, reponame, branch=None, uuid=None):
+        """ Return the necessary information to build a metadata count badge
 
-        :param username:
-        :param reponame:
-        :param branch:
-        :param uuid:
-        :return: (Template, Headers, Status Code)
+        :param username: Name of the repository owner
+        :param reponame: Name of the repository
+        :param branch: Name of the branch
+        :param uuid: Travis Build Id
+        :return: (Template, Kwargs, Status Code, Headers)
+        :rtype: (str, dict, int, dict)
         """
-        repo = self.get_repo_test(
-            owner=username,
-            name=reponame,
-            branch=branch,
-            uuid=uuid
-        )
+        repo = self.get_repo_test(username, reponame, branch, uuid)
 
         if not repo:
-            return None, 404, {}
-        else:
-            template = "svg/build.{0}.xml".format(repo.status)
+            return None, None, 404, {}
 
-        return template, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
+        cnt, total = repo.metadata_passing, repo.metadata_total
+        template = "svg/object_count.xml"
+        return template, {"object_name": "Metadata", "cnt": cnt, "total": total}, 200, \
+                {'Content-Type': 'image/svg+xml; charset=utf-8'}
 
     def coverage_badge(self, username, reponame, branch=None, uuid=None):
-        """ Create a status badge
+        """ Create a coverage badge
 
-        :param username:
-        :param reponame:
-        :param branch:
-        :param uuid:
+        :param username: Name of the repository owner
+        :param reponame: Name of the repository
+        :param branch: Name of the branch
+        :param uuid: Travis Build Id
         :return: (Template, Kwargs, Status Code, Headers)
+        :rtype: (str, dict, int, dict)
         """
         repo = self.get_repo_test(
             owner=username,
@@ -1015,30 +1073,6 @@ class HookUI(object):
             params = {"access_token": access_token}
 
         self.api.post(uri, data=data, params=params)
-
-    @staticmethod
-    def slice(elements, start, max=None):
-        """ Return a sublist of elements, starting from index {start} with a length of {max}
-
-        :param elements: List of elements to slice
-        :type elements: list
-        :param start: Starting element (0-based Index)
-        :type start: int
-        :param max: Maximum number of elements to return
-        :type max: int
-
-        :return: (Sublist, Starting index of the sublist, end_index)
-        :rtype: (list, int, int)
-        """
-        length = len(elements)
-        real_index = start + 1
-        if length < real_index:
-            return [], length, 0
-        else:
-            if max is not None and max + start < length:
-                return elements[start:max+start], start, max+start
-            else:
-                return elements[start:], start, length - 1
 
     def login(self, url_redirect):
         """ Login the user using github API
@@ -1168,3 +1202,28 @@ class HookUI(object):
         if rv is None:
             abort(404)
         return rv
+
+    @staticmethod
+    def slice(elements, start, max=None):
+        """ Return a sublist of elements, starting from index {start} with a length of {max}
+
+        :param elements: List of elements to slice
+        :type elements: list
+        :param start: Starting element (0-based Index)
+        :type start: int
+        :param max: Maximum number of elements to return
+        :type max: int
+
+        :return: (Sublist, Starting index of the sublist, end_index)
+        :rtype: (list, int, int)
+        """
+        length = len(elements)
+        real_index = start + 1
+        if length < real_index:
+            return [], length, 0
+        else:
+            if max is not None and max + start < length:
+                return elements[start:max+start], start, max+start
+            else:
+                return elements[start:], start, length - 1
+

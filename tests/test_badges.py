@@ -13,7 +13,7 @@ from unittest import TestCase
 from tests.make_moke import make_moke
 
 
-class TestGithubCommunication(TestCase):
+class TestBadgesRoutes(TestCase):
     def setUp(self):
         try:
             os.remove("Hook/test.db")
@@ -27,13 +27,11 @@ class TestGithubCommunication(TestCase):
         app.config["SECRET_KEY"] = 'super secret key'
         self.db = SQLAlchemy(app)
 
-        # Models
-
         # Mokes
         self.hook = HookUI(database=self.db, github=GitHub(app=app), login=LoginManager(app=app), app=app)
         self.Models = self.hook.Models
         self.db.create_all()
-        self.Mokes = make_new_latinLit_test = make_moke(self.db, self.Models)
+        self.Mokes = make_moke(self.db, self.Models)
         self.app = app
         self.app.debug = True
         self.client = app.test_client()
@@ -46,16 +44,42 @@ class TestGithubCommunication(TestCase):
         except:
             """ Something !"""
 
-    def test_cts_badge_branch(self):
-        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/cts.svg?branch=issue-45")
+    def test_metadata_count_badge_branch(self):
+        """ Ensure route for metadata count badge is working as expected when query """
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/metadata.svg?branch=issue-45")
+        self.assertIn(
+            "718/720",
+            response.data.decode(),
+            "Text should be well shown"
+        )
+
+    def test_metadata_count_badge(self):
+        """ Ensure route for metadata count badge is working as expected when query """
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/metadata.svg")
+        self.assertIn(
+            "719/720",
+            response.data.decode(),
+            "Text should be well shown"
+        )
+
+        with self.app.app_context():
+            self.Mokes.make_new_latinLit_test(self.db.session)
+
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/metadata.svg")
+        self.assertIn("718/720", response.data.decode(), "Text should be well shown")
+
+    def test_texts_count_badge_branch(self):
+        """ Ensure route for texts count badge is working as expected when query """
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/texts.svg?branch=issue-45")
         self.assertIn(
             "636/637",
             response.data.decode(),
             "Text should be well shown"
         )
 
-    def test_cts_badge(self):
-        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/cts.svg")
+    def test_texts_count_badge(self):
+        """ Ensure route for texts count badge is working as expected when no query """
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/texts.svg")
         self.assertIn(
             "630/637",
             response.data.decode(),
@@ -65,10 +89,11 @@ class TestGithubCommunication(TestCase):
         with self.app.app_context():
             self.Mokes.make_new_latinLit_test(self.db.session)
 
-        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/cts.svg")
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/texts.svg")
         self.assertIn("636/637", response.data.decode(), "Text should be well shown")
 
     def test_coverage_branch_badge(self):
+        """ Ensure route for coverage badge is working as expected when query """
         response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/coverage.svg?branch=master")
         self.assertIn("99.79", response.data.decode(), "Master should work correctly")
         response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/coverage.svg?branch=issue-45")
@@ -77,8 +102,20 @@ class TestGithubCommunication(TestCase):
             self.Mokes.make_new_latinLit_test(self.db.session)
         response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/coverage.svg?branch=master")
         self.assertIn("99.85", response.data.decode(), "Master should work correctly")
+        self.assertIn("#97CA00", response.data.decode(), "Color should be green because of success")
+        with self.app.app_context():
+            self.Mokes.make_new_latinLit_test(self.db.session, coverage=80.5)
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/coverage.svg?branch=master")
+        self.assertIn("80.5", response.data.decode(), "Score should be correctly displayed")
+        self.assertIn("#dfb317", response.data.decode(), "Color should be orange because not completely failure")
+        with self.app.app_context():
+            self.Mokes.make_new_latinLit_test(self.db.session, coverage=25.5)
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/coverage.svg?branch=master")
+        self.assertIn("25.5", response.data.decode(), "Score should be correctly displayed")
+        self.assertIn("#e05d44", response.data.decode(), "Color should be red because of failure")
 
     def test_coverage_badge(self):
+        """ Ensure route for coverage badge is working as expected when no query """
         response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/coverage.svg")
         self.assertIn("99.79", response.data.decode(), "Last Master Should Display Correctly")
 
@@ -88,3 +125,42 @@ class TestGithubCommunication(TestCase):
         response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/coverage.svg")
         self.assertIn("99.85", response.data.decode(), "Last Master Should Update Correctly")
 
+    def test_words_badge(self):
+        """ Ensure route for coverage badge is working as expected when no query """
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/words.svg")
+        response = response.data.decode()
+        self.assertIn("1081", response, "Last Master Should have 1081 words")
+        self.assertIn("Words", response, "Badge should not be filtered")
+
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/words.svg?lang=eng")
+        response = response.data.decode()
+        self.assertIn("125", response, "Last Master Should have 125 words")
+        self.assertIn("eng", response, "Badge should be English only")
+
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/words.svg?lang=lat")
+        response = response.data.decode()
+        self.assertIn("956", response, "Last Master Should have 956 words")
+        self.assertIn("lat", response, "Badge should be Latin only")
+
+        with self.app.app_context():
+            self.Mokes.make_new_latinLit_test(self.db.session)
+
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/words.svg")
+        response = response.data.decode()
+        self.assertIn("2263", response, "Last Master Should have 2263 words")
+        self.assertIn("Words", response, "Badge should not be filtered")
+
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/words.svg?lang=eng")
+        response = response.data.decode()
+        self.assertIn("125", response, "Last Master Should have 125 words")
+        self.assertIn("eng", response, "Badge should be English only")
+
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/words.svg?lang=lat")
+        response = response.data.decode()
+        self.assertIn("1050", response, "Last Master Should have 956 words")
+        self.assertIn("lat", response, "Badge should be Latin only")
+
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/words.svg?lang=ger")
+        response = response.data.decode()
+        self.assertIn("1088", response, "Last Master Should have 956 words")
+        self.assertIn("ger", response, "Badge should be Latin only")

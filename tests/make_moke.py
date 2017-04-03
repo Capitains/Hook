@@ -101,7 +101,7 @@ def make_moke(db, models):
             self.db = db
             self.models = models
 
-        def make_new_latinLit_test(self, session):
+        def make_new_latinLit_test(self, session, coverage=99.85):
             test3, *_ = self.models.Repository.query.filter(
                 models.Repository.owner == "PerseusDl",
                 models.Repository.name == "canonical-latinLit"
@@ -115,7 +115,7 @@ def make_moke(db, models):
                 texts_passing=636,
                 metadata_total=720,
                 metadata_passing=718,
-                coverage=99.85,
+                coverage=coverage,
                 nodes_count=113179,
                 units=test2_units,
                 words_count={
