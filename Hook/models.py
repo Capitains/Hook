@@ -366,7 +366,7 @@ def model_maker(db, prefix=""):
             :return:
             """
             items = [
-                (self.dict, last_master.dict, "Global"),
+                (self.diff_dict, last_master.diff_dict, "Global"),
                 (units, last_master.units_as_dict, "Units"),
                 (words_count, last_master.words_count_as_dict, "Words")
             ]
@@ -420,8 +420,8 @@ def model_maker(db, prefix=""):
             return "\n\n".join(output)
 
         @property
-        def dict(self):
-            dct = {
+        def diff_dict(self):
+            return {
                 "texts_total": self.texts_total,
                 "texts_passing": self.texts_passing,
                 "metadata_total": self.metadata_total,
@@ -429,7 +429,11 @@ def model_maker(db, prefix=""):
                 "coverage": self.coverage,
                 "nodes_count": self.nodes_count
             }
-            if self.words_count:
+
+        @property
+        def dict(self):
+            dct = self.diff_dict
+            if self.words_count is not None:
                 dct["words_count"] = self.words_count_as_dict
             return dct
 

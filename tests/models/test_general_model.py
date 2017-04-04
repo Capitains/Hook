@@ -344,7 +344,6 @@ class TestModels(TestCase):
             travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637, texts_passing=635, metadata_total=720, metadata_passing=719, coverage=99.79,
             nodes_count=113179, repository=ll.uuid
-            nodes_count=113179, repository=ll.uuid
         )
         self.db.session.add(test)
         self.commit()
