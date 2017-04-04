@@ -5,11 +5,8 @@
       <article>
           <div class="row">
             <header class="col-md-12">
-              <h1>
-                  <a class="pull-left" href="{{url_for('.repository', owner=repository.owner, repository=repository.name)}}"><span class="glyphicon glyphicon-home"></span></a>
-                  {{repository.owner}}/{{repository.name}}
-                  <img alt="Status badge" src="{{ url_for('.repo_badge_status', owner=repository.owner, repository=repository.name, branch=test.branch, uuid=test.uuid) }}" />
-                  <img alt="Coverage badge" src="{{ url_for('.repo_badge_coverage', owner=repository.owner, repository=repository.name, branch=test.branch, uuid=test.uuid) }}" />
+              <h1 style="font-size: large;">
+                  <a href="{{url_for('.repository', owner=repository.owner, repository=repository.name)}}"><span class="fa fa-home"></span> {{repository.owner}}/{{repository.name}}</a>
               </h1>
               <div class="dl-horizontal card">
                 <div class="left {{test.status}}">
@@ -23,66 +20,30 @@
                       </ul>
                   </div>
                   <div class="col-md-9 text-right">
-                    <img class="user" src="{{test.gravatar}}?s=50" alt="{{test.user}}" />
+                    <img class="user" src="{{test.travis_user_gravatar}}?s=50" alt="{{test.user}}'s avatar" />
                     {{test.user}}
                     <a href="{{test.link}}" target="_blank">{{test.sha[0:8]}}</a>
                   </div>
+                    <br clear="all" />
+                  <dl class="dl-horizontal" style="margin-top:15px;">
+                      <dt>Coverage</dt>
+                        <dd>{{test.coverage}}</dd>
+                      <dt>Texts</dt>
+                        <dd>{{test.texts_passing}}/{{test.texts_total}}</dd>
+                      <dt>Metadata</dt>
+                        <dd>{{test.metadata_passing}}/{{test.metadata_total}}</dd>
+                      <dt>Citation Nodes</dt>
+                        <dd>{{test.nodes_count}}</dd>
+                      {% if test.words_count|count > 0 %}
+                          {% for wc in test.words_count %}
+                              <dt>Words [{{wc.lang}}]</dt>
+                                  <dd>{{wc.count}}</dd>
+                          {% endfor %}
+                      {% endif %}
+                  </dl>
                 </div>
               </div>
           </header>
         </div>
-        {% if test.error_message %}
-          <em>Traceback :</em>
-          <pre style="margin:5%;" class="pre-scrollable">{{test.error_message}}</pre>
-        {% endif %}
-        <div class="row">
-          <section class="col-md-12">
-            <div class="filelist dl-horizontal">
-              {% for unit in test.units|sort(attribute='path') %}
-                <div  class="row">
-                    <div class="col-md-10"><a href="{{url_for(".api_repo_unit_history", owner=repository.owner, repository=repository.name)}}?uuid={{test.uuid}}&unit={{unit.path}}">{{unit.path}}</a><div class="target"></div></div>
-                    <div class="col-md-2"><div class="hookbadge {{unit.status|success_class}}">{{unit.status|success_class}}</div></div>
-                </div>
-              {% endfor %}
-            </div>
-          </section>
-        </div>
       </article>
-{% endblock %}
-
-{% block script %}
-{% if not test.finished %}
-<input type="hidden" href="{{url_for('.api_repo_history', owner=repository.owner, repository=repository.name)}}?uuid={{test.uuid}}" data-target="#log-container" id="informations-log"/>
-
-{% endif %}
-<script src="{{url_for('.static', filename='js/format.log.js')}}"></script>
-<script type="text/javascript">
-    $(document).ready(function() {
-
-    /*reload($("#informations-log"));
-    ,
-            url = "{{url_for(".api_repo_unit_history", owner=repository.name, repository=repository.owner)}}";
-
-        $.get(that.attr("href"), function(data) {
-            for ( var i = 0, l = arr.length; i < l; i++ ) {
-                var row = $("<div />", {"class":"row"}),
-                    name = $("<div />", {"class":"col-md-10"}),
-                    a = $("a", {"href",
-                    badge=;
-                $(".filelist").append(
-
-                );
-            }
-        });
-    */
-
-        $(".filelist a").on("click", function(e) {
-            e.preventDefault();
-            var that = $(this),
-                target = that.parent().find(".target");
-
-            logs(target, that.attr("href"));
-        });
-    });
-</script>
 {% endblock %}

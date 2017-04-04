@@ -8,78 +8,42 @@
               {{repository.owner}}/{{repository.name}}<a href="https://github.com/{{repository.owner}}/{{repository.name}}">
                 <span class="fa fa-github"></span>
               </a> 
-              {% if not repository.isWritable(current_user) %}
-              <div class="btn {{repository.tested|btn}} btn-xs"><span class="glyphicon glyphicon-off"></span></div>
+              {% if not repository.has_rights(current_user) %}
+                <div class="btn {{repository.active|btn}} btn-xs"><span class="glyphicon glyphicon-off"></span></div>
               {% endif %}
-              {% if tests|length > 0 %}
-              <img alt="Status badge" src="{{ url_for('.repo_badge_status', owner=repository.owner, repository=repository.name) }}" />
-              <img alt="Status badge" src="{{ url_for('.repo_badge_coverage', owner=repository.owner, repository=repository.name) }}" />
-              <img alt="CTS badge" src="{{ url_for('.repo_cts_status', owner=repository.owner, repository=repository.name) }}" />
+              {% if tests.items %}
+              <div>
+                  <img alt="Coverage" src="{{ url_for('.repo_badge_coverage', owner=repository.owner, repository=repository.name) }}" />
+                  <img alt="Text badges" src="{{ url_for('.repo_texts_count', owner=repository.owner, repository=repository.name) }}" />
+                  <img alt="Metadata badges" src="{{ url_for('.repo_metadata_count', owner=repository.owner, repository=repository.name) }}" />
+                  {% if repository.last_master_test.words_count|count > 0 %}
+                      <img alt="Words badges" src="{{ url_for('.repo_words_count', owner=repository.owner, repository=repository.name) }}" />
+                      {% for wc in repository.last_master_test.words_count %}
+                          <img alt="{{wc.lang}} badges" src="{{ url_for('.repo_words_count', owner=repository.owner, repository=repository.name, lang=wc.lang) }}" />
+                      {% endfor %}
+                  {% endif %}
+              </div>
+
               {% endif %}
           </h1>
       </header>
       <div class="row">
-          {% if repository.isWritable(current_user) %}
+          {% if repository.has_rights(current_user) %}
           <div class="col-md-4">
               <h2>
                 Settings
                 <div class="pull-right">
-                  {% if repository.tested %}
-                  <a href="{{url_for('.api_test_generate_route', owner=repository.owner, repository=repository.name)}}" class="btn btn-xs btn-info run">Run</a>
-                  {% endif %}
-                  <button id="state" class="btn {{repository.tested|btn}} btn-xs">
+                  <button id="state" class="btn {{repository.active|btn}} btn-xs">
                     <span class="glyphicon glyphicon-off"></span>
                     <span class="fa fa-refresh" style="display: none;"></span>
                   </button>
                 </div>
               </h2>
               {% if repository.updated %}
-              <div class="alert alert-success" role="alert">
-                Settings were updated
-              </div>
+                  <div class="alert alert-success" role="alert">
+                    Settings were updated
+                  </div>
               {% endif %}
-              <form method="POST" action="{{url_for('.repository', owner=repository.owner, repository=repository.name)}}" class="form form-horizontal">
-                <div class="form-group">
-                  <div class="col-sm-4">
-                    Scheme
-                  </div>
-                  <div class="col-sm-8">
-                    <div class="radio">
-                      <label>
-                        <input type="radio" name="dtd" value="tei" {{repository.dtd|tei}}> TEI
-                      </label>
-                    </div>
-                    <div class="radio">
-                      <label>
-                        <input type="radio" name="dtd" value="epidoc" {{repository.dtd|epidoc}}> Epidoc
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <div class="col-sm-8 col-sm-offset-4">
-                    <div class="checkbox">
-                      <label>
-                        <input type="checkbox" name="masterpr" value="only" {{repository.master_pr|checked}}> Master and PR testing only
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <div class="col-sm-8 col-sm-offset-4">
-                    <div class="checkbox">
-                      <label>
-                        <input type="checkbox" name="verbose" value="true" {{repository.verbose|checked}}> Verbose
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <div class="col-sm-offset-2 col-sm-10">
-                    <button type="submit" class="btn btn-default btn-xs">Save</button>
-                  </div>
-                </div>
-              </form>
           </div>
           <div class="col-md-8">
           {% else %}
@@ -96,46 +60,28 @@
                   <thead>
                       <tr>
                           <th>Date</th>
-                          <th>Reference</th>
+                          <th>Build</th>
+                          <th>Ref</th>
                           <th>User</th>
-                          <th>Status</th>
                           <th>Coverage</th>
-                          <th>Total Files</th>
-                          <th>Logs</th>
+                          <th>More</th>
                       </tr>
                   </thead>
                   <tbody>
-                      {% for test in running %}
-
-                          <tr class="warning">
-                              <td>{{test.run_at}}</td>
-                              <td>{{test.branch|nice_ref(test.sha)}}</td>
-                              <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
-                              <td colspan="3">
-                                <div class="progress">
-                                  <div class="progress-bar" role="progressbar" aria-valuenow="{{test.percent}}" aria-valuemin="0" aria-valuemax="100" style="width: {{test.percent}}%;">
-                                  {{test.percent}}%
-                                  </div>
-                                </div>
-                              </td>
-                              <td>
-                                {% if repository.isWritable(current_user) %}
-                                <a href="{{url_for('.api_repo_history', owner=repository.owner, repository=repository.name)}}?uuid={{test.uuid}}" class="btn btn-xs btn-danger cancel-test" style="margin:1px;"><span class="glyphicon glyphicon-remove"></span></a>
-                                {% endif %}
-                                <a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('.repository_test', owner=repository.owner, repository=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a>
-                              </td>
-                          </tr>
-                      {% endfor %}
-                      {% for test in tests %}
+                      {% for test in tests.items %}
 
                           <tr>
                               <td>{{test.run_at}}</td>
+                              <td><a href="{{test.travis_uri}}">{{test.travis_build_id}}</a></td>
                               <td>{{test.branch|nice_ref(test.sha)}}</td>
-                              <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
-                              <td><div class="hookbadge {{test.status}}">{{test.status}}</div></td>
-                              <td>{% if test.coverage %}{{test.coverage|round(2)}}%{% endif %}</td>
+                              <td><img class="user user-20" src="{{test.travis_user_gravatar}}?s=20" alt="{{test.user}}" /></td>
+                              <td>{{test.coverage}}</td>
                               <td>{{test.total}}</td>
-                              <td><a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('.repository_test', owner=repository.owner, repository=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
+                              <td>
+                                  <a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('.repository_test', owner=repository.owner, repository=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a>
+                                  <a class="btn btn-xs btn-link" style="margin:1px;" href="{{test.comment_uri}}" alt="Github Comment"><span class="fa fa-file-text-o"></span></a>
+
+                              </td>
                           </tr>
                       {% endfor %}
                   </tbody>
@@ -159,23 +105,6 @@ $(document).ready(function() {
       });
   });
 
-  $(".cancel-test").on("click", function(e) {
-    e.preventDefault();
-    var that = $(this),
-        uri = that.attr("href");
-
-    $.ajax({
-      url: uri,
-      type: 'DELETE',
-      success: function(data) {
-        location.reload();
-      },
-      error : function(data) {
-        alert("Error while canceling");
-        location.reload();
-      }
-    });
-  })
 
   $('#state').on('click', function(event) {
     event.preventDefault();

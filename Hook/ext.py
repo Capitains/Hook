@@ -405,6 +405,7 @@ class HookUI(object):
         :param commit: Commit SHA
         :return: Human readable reference
         """
+        print(branch, commit)
         if HookUI.PR_FINDER.match(branch):
             return "PR #{0}".format(branch.strip("pull/").strip("/head"))
         return commit[0:8]
@@ -540,31 +541,18 @@ class HookUI(object):
         """
 
         start, end = 0, 20
-        repository = self.m_Repository.objects.filter_or_404(owner__iexact=owner, name__iexact=repository)
+        repository = self.Models.Repository.get_or_raise(owner=owner, name=repository)
 
-        if request.method == "POST" and hasattr(g, "user") and g.user in repository.authors:
+        if request.method == "POST" and current_user.is_authenticated and repository.has_rights(current_user):
             repository.config(request.form)
 
         # PAGINATION !!!
-        tests = self.m_RepoTest.objects(
-            repository=repository
-        ).exclude(
-            "units"
-        )
+        tests = repository.tests.order_by(self.Models.RepoTest.run_at.desc()).paginate()
 
-        done = [test for test in tests if test.finished]
-        running = [test for test in tests if test.finished == False]
-
-        for r in running:
-            if r.total > 0:
-                r.percent = int(r.tested / r.total * 100)
-            else:
-                r.percent = 0
 
         return {
             "repository": repository,
-            "tests": done,
-            "running": running
+            "tests": tests
         }
 
     def toggle_repo(self, owner, repository):
@@ -589,14 +577,11 @@ class HookUI(object):
         :return: Response containing the Report
         """
 
-        repository = self.m_Repository.objects.filter_or_404(owner__iexact=owner, name__iexact=repository)
-        test = self.m_RepoTest\
-            .objects(repository=repository, uuid=uuid)\
-            .exclude("units.text_logs")\
-            .first()
+        repository = self.Models.Repository.get_or_raise(owner=owner, name=repository)
+        test = repository.get_test(uuid)
 
         if json is True:
-            return jsonify(units=test.units_status())
+            return jsonify(test)
         else:
             return {
                 "repository": repository,
@@ -1040,7 +1025,7 @@ class HookUI(object):
         :param reponame:
         :return:
         """
-        repository = self.m_Repository.objects.filter_or_404(owner__iexact=username, name__iexact=reponame)
+        repository = self.Models.Repository.get_or_raise(owner=username, name=reponame)
         history = {
             "username": username,
             "reponame": reponame,
@@ -1048,11 +1033,9 @@ class HookUI(object):
                 {
                     "run_at": event.run_at,
                     "uuid": event.uuid,
-                    "coverage": event.coverage,
-                    "ref": event.branch,
-                    "slug": event.branch_slug
+                    "coverage": event.coverage
                 }
-                for event in self.m_RepoTest.objects.exclude("units")(repository=repository)
+                for event in repository.tests.paginate().items
             ]
         }
         return jsonify(**history)

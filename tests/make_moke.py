@@ -54,7 +54,7 @@ def make_moke(db, models):
         travis_uri="https://travis-ci.org/PerseusDl/canonical-latinLit/builds/216262544",
         travis_build_id="27",
         travis_user="sonofmun",
-        travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+        travis_user_gravatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
         texts_total=637,
         texts_passing=630,
         metadata_total=720,
@@ -65,7 +65,9 @@ def make_moke(db, models):
         words_count={
             "eng": 125,
             "lat": 956
-        }
+        },
+        sha="7d3d6a0b62f0d244b684843c7546906d742013fd",
+        comment_uri="https://github.com/PerseusDL/canonical-latinLit/commit/7d3d6a0b62f0d244b684843c7546906d742013fd#all_commit_comments"
     )
     sleep(0.05)
     # Create second test
@@ -79,7 +81,7 @@ def make_moke(db, models):
         travis_uri="https://travis-ci.org/PerseusDl/canonical-latinLit/builds/216262555",
         travis_build_id="28",
         travis_user="sonofmun",
-        travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+        travis_user_gravatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
         texts_total=637,
         texts_passing=636,
         metadata_total=720,
@@ -91,7 +93,9 @@ def make_moke(db, models):
             "eng": 125,
             "lat": 1050,
             "ger": 1088
-        }
+        },
+        sha="7d3d6a0b62f0d244b684843c7546906d742013fd",
+        comment_uri="https://github.com/PerseusDL/canonical-latinLit/commit/7d3d6a0b62f0d244b684843c7546906d742013fd#all_commit_comments"
     )
     sleep(0.05)
 
@@ -117,7 +121,7 @@ def make_moke(db, models):
                 travis_uri="https://travis-ci.org/PerseusDl/canonical-latinLit/builds/216262588",
                 travis_build_id="29",
                 travis_user="sonofmun",
-                travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+                travis_user_gravatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
                 texts_total=637,
                 texts_passing=636,
                 metadata_total=720,
@@ -129,8 +133,11 @@ def make_moke(db, models):
                     "eng": 125,
                     "lat": 1050,
                     "ger": 1088
-                }
+                },
+                sha="7d3d6a0b62f0d244b684843c7546906d742013fd",
+                comment_uri="https://github.com/PerseusDL/canonical-latinLit/commit/7d3d6a0b62f0d244b684843c7546906d742013fd#all_commit_comments"
             )
             session.commit()
+            return test3
     db.session.commit()
     return Mokes(db, latinLit)

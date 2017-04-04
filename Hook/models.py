@@ -134,6 +134,12 @@ def model_maker(db, prefix=""):
                 order_by(RepoTest.run_at.desc()).\
                 first()
 
+        def get_test(self, uuid):
+            return self.tests.\
+                filter(RepoTest.uuid == uuid).\
+                order_by(RepoTest.run_at.desc()).\
+                first()
+
         def has_rights(self, user):
             """ Check that a user has rights to switch value on given repo
 
@@ -193,7 +199,7 @@ def model_maker(db, prefix=""):
         def register_test(
                 self, branch, travis_uri, travis_build_id, travis_user, travis_user_gravatar, texts_total,
                 texts_passing, metadata_total, metadata_passing, coverage, nodes_count,
-                units, words_count=None
+                units, words_count=None, sha=None, comment_uri=None
         ):
             """ Save a test and produce a diff if this is master
 
@@ -230,7 +236,8 @@ def model_maker(db, prefix=""):
                 repository=self.uuid, branch=branch, travis_uri=travis_uri,
                 travis_build_id=travis_build_id, travis_user=travis_user, travis_user_gravatar=travis_user_gravatar,
                 texts_total=texts_total, texts_passing=texts_passing, metadata_total=metadata_total,
-                metadata_passing=metadata_passing, coverage=coverage, nodes_count=nodes_count
+                metadata_passing=metadata_passing, coverage=coverage, nodes_count=nodes_count,
+                sha=sha, comment_uri=comment_uri
             )
             diff = None
             if last_master is not None:
@@ -239,9 +246,10 @@ def model_maker(db, prefix=""):
             db.session.add(repo)
             db.session.commit()
 
+            if words_count is not None:
+                repo.save_words_count(words_count)
+
             if self.main_branch == branch:
-                if words_count is not None:
-                    repo.save_words_count(words_count, _last_master=last_master)
                 repo.save_units(units, _commit=True, _last_master=last_master)
 
             return repo, diff
@@ -254,10 +262,15 @@ def model_maker(db, prefix=""):
         run_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
         branch = db.Column(db.String(250), nullable=None)
 
+        sha = db.Column(db.String(64), nullable=True)
+
         travis_uri = db.Column(db.String(2000), nullable=False)
         travis_build_id = db.Column(db.String(10), nullable=False)
         travis_user = db.Column(db.String(200), nullable=False)
         travis_user_gravatar = db.Column(db.String(2000), nullable=False)
+
+        comment_uri = db.Column(db.String(2000), nullable=True)
+        api_comment_uri = db.Column(db.String(2000), nullable=True)
 
         texts_total = db.Column(db.Integer, nullable=False, default=0)
         texts_passing = db.Column(db.Integer, nullable=False, default=0)
@@ -287,6 +300,15 @@ def model_maker(db, prefix=""):
             "WordCount",
             backref=db.backref('word_count_dyn'), lazy="dynamic"
         )
+
+        @property
+        def status(self):
+            if self.coverage > 90.0:
+                return "success"
+            elif self.coverage > 75.0:
+                return "acceptable"
+            else:
+                return "failed"
 
         def __repr__(self):
             return self.travis_build_id
@@ -399,14 +421,17 @@ def model_maker(db, prefix=""):
 
         @property
         def dict(self):
-            return {
+            dct = {
                 "texts_total": self.texts_total,
                 "texts_passing": self.texts_passing,
                 "metadata_total": self.metadata_total,
                 "metadata_passing": self.metadata_passing,
                 "coverage": self.coverage,
-                "nodes_count": self.nodes_count,
+                "nodes_count": self.nodes_count
             }
+            if self.words_count:
+                dct["words_count"] = self.words_count_as_dict
+            return dct
 
         @staticmethod
         def new_object(name):

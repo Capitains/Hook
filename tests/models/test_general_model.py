@@ -344,6 +344,7 @@ class TestModels(TestCase):
             travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637, texts_passing=635, metadata_total=720, metadata_passing=719, coverage=99.79,
             nodes_count=113179, repository=ll.uuid
+            nodes_count=113179, repository=ll.uuid
         )
         self.db.session.add(test)
         self.commit()
@@ -613,7 +614,7 @@ class TestModels(TestCase):
         self.assertEqual(test.units_as_dict, self.former_unit, "Old units should still be okay")
         self.assertEqual(test2.units, [], "There should be no units registered for test2")
         self.assertEqual(test.words_count_as_dict, {"eng": 125, "lat": 956}, "Old wordcount should still be okay")
-        self.assertEqual(test2.words_count, [], "There should be no wordcount registered for test2")
+        self.assertEqual(test2.words_count_as_dict, {"eng":55556, "lat":7899973, "ger":78945}, "There should be no wordcount registered for test2")
         sleep(0.1)
         """
             Second part :
@@ -678,5 +679,5 @@ class TestModels(TestCase):
             test3.words_count_as_dict, {"eng": 55556, "lat": 7899973, "ger": 78945},
             "New repotest should be saved"
         )
-        self.assertEqual(test2.words_count, [], "There should be no wordcount registered for test2")
-        self.assertEqual(test.words_count, [], "There should be no wordcount registered for old last master")
+        self.assertEqual(test.words_count_as_dict, {"eng": 125, "lat": 956}, "Old wordcount should still be okay")
+        self.assertEqual(test2.words_count_as_dict, {"eng":55556, "lat":7899973, "ger":78945}, "There should be no wordcount registered for test2")
