@@ -1,6 +1,7 @@
-from flask import Blueprint, url_for, request, render_template, g, Markup, session, redirect, jsonify, send_from_directory, abort
+from flask import Blueprint, url_for, request, render_template, g, Markup, session, redirect, \
+    jsonify, send_from_directory, abort
 from flask_github import GitHub
-from flask_login import LoginManager, current_user
+from flask_login import LoginManager, current_user, login_required, login_user
 from flask_sqlalchemy import SQLAlchemy
 
 from pkg_resources import resource_filename
@@ -31,8 +32,8 @@ class HookUI(object):
         ('/repo/<owner>/<repository>', "r_repository", ["GET", "POST"]),
         ('/repo/<owner>/<repository>/<uuid>', "r_repository_test", ["GET"]),
 
-        ("/api/rest/v1.0/user/repositories", "r_api_user_repositories", ["GET", "POST"]),
-        ("/api/rest/v1.0/user/repositories/<owner>/<repository>", "r_api_user_repository_switch", ["PUT"]),
+        ("/api/hook/v2.0/user/repositories", "r_api_user_repositories", ["GET", "POST"]),
+        ("/api/hook/v2.0/user/repositories/<owner>/<repository>", "r_api_user_repository_switch", ["PUT"]),
 
         ('/api/hook/v2.0/badges/<owner>/<repository>/texts.svg', "r_repo_texts_count", ["GET"]),
         ('/api/hook/v2.0/badges/<owner>/<repository>/metadata.svg', "r_repo_metadata_count", ["GET"]),
@@ -45,6 +46,11 @@ class HookUI(object):
 
         ("/favicon.ico", "r_favicon", ["GET"]),
         ("/favicon/<icon>", "r_favicon_specific", ["GET"])
+    ]
+
+    route_login_required = [
+        "r_api_user_repositories",
+        "r_api_user_repository_switch"
     ]
 
     FILTERS = [
@@ -87,6 +93,7 @@ class HookUI(object):
         self.app = app
         self.name = name
         self.blueprint = None
+        self.Models = None
 
         self.db = database
         self.api = github
@@ -162,9 +169,12 @@ class HookUI(object):
 
         # Register routes
         for url, name, methods in HookUI.ROUTES:
+            view_func = getattr(self, name)
+            if name in self.route_login_required:
+                view_func = login_required(view_func)
             self.blueprint.add_url_rule(
                 url,
-                view_func=getattr(self, name),
+                view_func=view_func,
                 endpoint=name[2:],
                 methods=methods
             )
@@ -195,9 +205,8 @@ class HookUI(object):
 
         :return: User github access token or None
         """
-        if hasattr(g, "user"):
-            if g.user is not None:
-                return g.user.github_access_token
+        if current_user is not None:
+            return current_user.github_access_token
 
     def r_login(self):
         """ Route for login
@@ -278,19 +287,11 @@ class HookUI(object):
         :param owner: Name of the user
         :param repository: Name of the repository
         """
-        return self.link(owner, repository, self.url_for(".github_payload", _external=True))
+        content, status_code = self.toggle_repo(owner, repository)
+        r = jsonify(content)
+        r.status_code = status_code
+        return r
 
-    def r_repo_badge_status(self, owner, repository):
-        """ Get a Badge for a repo
-
-        :param owner: Name of the user
-        :param repository: Name of the repository
-        """
-        response, status, header = self.status_badge(owner, repository, branch=request.args.get("branch"), uuid=request.args.get("uuid"))
-        if response:
-            return render_template(response), status, header
-        else:
-            return "", status, {}
 
     def r_repo_texts_count(self, owner, repository):
         """ Get a Text Count Badge for a repository
@@ -565,6 +566,18 @@ class HookUI(object):
             "tests": done,
             "running": running
         }
+
+    def toggle_repo(self, owner, repository):
+        """ Route for toggling writing on repository
+
+        :param owner: Name of the user
+        :param repository: Name of the repository
+        """
+        repository = self.Models.Repository.get_or_raise(owner=owner, name=repository)
+        if repository is None:
+            return {"error": "Unknown repository"}, 404
+        else:
+            return {"status": repository.switch_active(current_user)}, 200
 
     def repo_report(self, owner, repository, uuid, json=False):
         """ Generate data for repository report
@@ -1122,8 +1135,7 @@ class HookUI(object):
             self.db.session.add(user)
             self.db.session.commit()
 
-        with self.app.app_context():
-            session['user_id'] = user.uuid
+        login_user(user)
         return redirect(success)
 
     def fetch_repositories(self, method):
@@ -1133,29 +1145,30 @@ class HookUI(object):
         :return:
         """
         response = []
-        if hasattr(self.g, "user") and self.g.user:
-            if method == "POST":
-                # We clear the old authors
-                self.g.user.remove_authorship()
+        if method == "POST":
+            # We clear the old authors
+            current_user.remove_authorship()
 
-                repositories = self.api.get(
-                    "user/repos",
-                    params={
-                        "affiliation": "owner,collaborator,organization_member",
-                        "access_token": self.g.user.github_access_token
-                    },
-                    all_pages=True
-                )
+            repositories = self.api.get(
+                "user/repos",
+                params={
+                    "affiliation": "owner,collaborator,organization_member",
+                    "access_token": current_user.github_access_token
+                },
+                all_pages=True
+            )
 
-                for repo in repositories:
-                    owner = repo["owner"]["login"]
-                    name = repo["name"]
-                    repo = self.g.user.addto(owner=owner, name=name)
-                    response.append(repo)
-            elif method == "GET":
-                response = self.g.user.repositories
+            for repo in repositories:
+                owner = repo["owner"]["login"]
+                name = repo["name"]
+                repo = self.Models.Repository.find_or_create(owner, name, _commit_on_create=False)
+                current_user.repositories.append(repo)
+                response.append(repo)
+            self.db.session.commit()
+        elif method == "GET":
+            response = current_user.repositories
 
-        return jsonify({"repositories" : [repo.dict() for repo in response]})
+        return jsonify({"repositories": [repo.dict() for repo in response]})
 
     def logout(self, url_redirect):
         """ Logout the user and redirect to a specific url

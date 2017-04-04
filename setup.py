@@ -10,8 +10,8 @@ setup(
     license='GNU GPL',
     packages=find_packages(exclude=("tests")),
     install_requires=[
-        "Flask==0.12",
-        "flask-login==0.2.11",
+        "Flask>=0.12",
+        "flask-login>=0.4.0",
         "GitHub-Flask==2.1.1",
         "unicode-slugify==0.1.3",
         "Flask-SQLAlchemy==2.2",
@@ -19,7 +19,8 @@ setup(
     ],
     tests_require=[
         "mock==2.0.0",
-        "requests-mock==1.3.0"
+        "requests-mock==1.3.0",
+        "beautifulsoup4==4.5.3"
     ],
     test_suite="tests",
     include_package_data=True,

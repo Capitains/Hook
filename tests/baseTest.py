@@ -25,7 +25,7 @@ class BaseTest(TestCase):
     name = "Qwerty Uiop"
 
     @contextmanager
-    def logged_in(self, extra_mocks=None):
+    def logged_in(self, access_token="yup", extra_mocks=None):
         if extra_mocks is None:
             extra_mocks = []
 
@@ -33,7 +33,7 @@ class BaseTest(TestCase):
         self.client.get('/login')
         # redirects to github, let's fake the callback
         code = 'yeah'
-        github_resp = 'access_token=yup'
+        github_resp = 'access_token=%s' % access_token
         github_matcher = re.compile('github.com/')
         github_usermatcher = re.compile('https://api.github.com/user')
         headers = {'Content-Type': 'application/json'}
@@ -42,9 +42,8 @@ class BaseTest(TestCase):
             m.post(github_matcher, text=github_resp)
             m.get(github_usermatcher, json=github_user)
             self.client.get('/api/github/callback?code=%s' % code)
-            for verb, url, text in extra_mocks:
-                m.register_uri(verb, re.compile(url), text=text,
-                               headers=headers)
+            for verb, url, kwargs in extra_mocks:
+                m.register_uri(verb, re.compile(url), **kwargs)
 
             # at this point we are logged in
             try:

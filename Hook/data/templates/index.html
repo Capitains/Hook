@@ -4,7 +4,7 @@
 {% block body %}
 <h1>Welcome to Capitains Hook</h1>
 
-{% if current_user.is_authenticated == True %}
+{% if current_user.is_authenticated %}
     <h2>Repository you might want to add <button class=" pull-right btn btn-default" type="button" id="refresh"><span class="fa fa-refresh"></span></button></h2>
 
     <div class="row">

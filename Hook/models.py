@@ -2,11 +2,13 @@ __author__ = 'Thibault Clerice'
 
 import datetime
 import re
+from flask import g, session
 from tabulate import tabulate
 from Hook.exceptions import *
 from collections import defaultdict
 from math import isclose
 from operator import itemgetter
+from flask_login import UserMixin
 
 
 pr_finder = re.compile("pull\/([0-9]+)\/head")
@@ -22,10 +24,11 @@ def model_maker(db, prefix=""):
 
     RepoOwnership = db.Table("repoownership",
         db.Column('user_uuid', db.Integer, db.ForeignKey('user.uuid')),
-        db.Column('repo_uuid', db.Integer, db.ForeignKey('repository.uuid'))
+        db.Column('repo_uuid', db.Integer, db.ForeignKey('repository.uuid')),
+        #db.UniqueConstraint('user_uuid', 'repo_uuid', name='unique_repo_link')
     )
 
-    class User(db.Model):
+    class User(UserMixin, db.Model):
         """ User information
 
         :param uuid: User Unique Identifier
@@ -76,9 +79,21 @@ def model_maker(db, prefix=""):
         def active_repositories(self):
             return self.dyn_repositories.filter(Repository.active == True).all()
 
-        @property
-        def is_authenticated(self):
-            return True
+        def get_id(self):
+            """ (LoginManager) This method must return a unicode that uniquely identifies this user, and can be used to\
+            load the user from the user_loader callback. Note that this must be a unicode - if the ID is natively an \
+            int or some other type, you will need to convert it to unicode.
+
+            :return: UUID
+            :rtype: str
+            """
+            return str(self.uuid)
+
+        def remove_authorship(self, _commit=True):
+            for repo in self.repositories:
+                self.repositories.remove(repo)
+            if _commit is True:
+                db.session.commit()
 
         def __repr__(self):
             return self.login
@@ -145,6 +160,17 @@ def model_maker(db, prefix=""):
                     db.session.commit()
                 return self.active
             raise RightsException("{} has no rights to write over {}".format(user, self))
+
+        @staticmethod
+        def get_or_raise(owner, name):
+            """ Finds a repository by owner and name
+
+            :param owner: Name of the repo owner
+            :param name: Name of the repository
+            :return:
+            """
+            query = Repository.query.filter_by(owner=owner, name=name)
+            return query.first()
 
         @staticmethod
         def find_or_create(owner, name, active=False, _commit_on_create=True):

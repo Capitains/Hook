@@ -100,6 +100,13 @@ def make_moke(db, models):
             self.latinLit = latinLit
             self.db = db
             self.models = models
+            self.ponteineptique = ponteineptique
+            self.greekLit = greekLit
+
+        def add_repo_to_pi(self):
+            self.ponteineptique.repositories.append(self.latinLit)
+            self.ponteineptique.repositories.append(self.greekLit)
+            db.session.commit()
 
         def make_new_latinLit_test(self, session, coverage=99.85):
             test3, *_ = self.models.Repository.query.filter(
