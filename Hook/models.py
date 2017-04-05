@@ -199,7 +199,7 @@ def model_maker(db, prefix=""):
         def register_test(
                 self, branch, travis_uri, travis_build_id, travis_user, travis_user_gravatar, texts_total,
                 texts_passing, metadata_total, metadata_passing, coverage, nodes_count,
-                units, words_count=None, sha=None, comment_uri=None
+                units, words_count=None, sha=None, comment_uri=None, _get_diff=True
         ):
             """ Save a test and produce a diff if this is master
 
@@ -240,7 +240,7 @@ def model_maker(db, prefix=""):
                 sha=sha, comment_uri=comment_uri
             )
             diff = None
-            if last_master is not None:
+            if last_master is not None and _get_diff is True:
                 diff = repo.diff(self.last_master_test, units, words_count)
 
             db.session.add(repo)

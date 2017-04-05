@@ -1,5 +1,6 @@
 from time import sleep
-
+import hashlib
+from datetime import datetime, timedelta
 
 def make_moke(db, models):
     former_unit = {
@@ -106,6 +107,8 @@ def make_moke(db, models):
             self.models = models
             self.ponteineptique = ponteineptique
             self.greekLit = greekLit
+            self.test1 = test
+            self.test2 = test2
 
         def add_repo_to_pi(self):
             self.ponteineptique.repositories.append(self.latinLit)
@@ -139,5 +142,47 @@ def make_moke(db, models):
             )
             session.commit()
             return test3
+
+        def make_lots_of_tests(
+                self,
+                number, session, target,
+                coverage_ends_at=85.0, datetime_starts_at=None,
+
+        ):
+            if datetime_starts_at is None:
+                datetime_starts_at = datetime(2017, 4, 5, 7, 4, 22, tzinfo=None)
+            tests = []
+            coverage_starts_at = coverage_ends_at - float(number)/2.0
+            for i in range(1, number+1):
+                sha = hashlib.sha1(bytes(i)).hexdigest()
+                coverage = coverage_starts_at + i*0.5
+                date = datetime_starts_at + timedelta(hours=i)
+
+                test, _ = target.register_test(
+                    branch="issue-"+str(i),
+                    travis_uri="https://travis-ci.org/PerseusDl/canonical-latinLit/builds/216262588",
+                    travis_build_id=29+i,
+                    travis_user="sonofmun",
+                    travis_user_gravatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
+                    texts_total=637,
+                    texts_passing=636,
+                    metadata_total=720,
+                    metadata_passing=718,
+                    coverage=coverage,
+                    nodes_count=113179,
+                    units=test2_units,
+                    words_count={
+                        "eng": 125,
+                        "lat": 1050,
+                        "ger": 1088+i
+                    },
+                    sha=sha,
+                    comment_uri="https://github.com/PerseusDL/canonical-latinLit/commit/{}#all_commit_comments".format(sha),
+                    _get_diff=False
+                )
+                test.run_at = date
+                tests.append(test)
+            session.commit()
+            return tests
     db.session.commit()
     return Mokes(db, latinLit)

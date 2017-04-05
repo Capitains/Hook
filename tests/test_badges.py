@@ -164,3 +164,35 @@ class TestBadgesRoutes(TestCase):
         response = response.data.decode()
         self.assertIn("1088", response, "Last Master Should have 956 words")
         self.assertIn("ger", response, "Badge should be Latin only")
+
+    def test_wrong_words_badges(self):
+        """ Ensure route for badges are failing with wrong badges"""
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-farsiLit/words.svg")
+        self.assertEqual(response.status_code, 404, "Error should result in 404")
+        self.assertIn("Unknown repository", response.data.decode())
+
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/words.svg?lang=fre")
+        self.assertEqual(response.status_code, 404, "Error should result in 404")
+        self.assertIn("Unknown language", response.data.decode())
+
+        with self.client.application.app_context():
+            test = self.Models.RepoTest.query.get(2)
+            for word in test.words_count:
+                test.words_count.remove(word)
+            self.db.session.commit()
+
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-latinLit/words.svg?uuid=2")
+        self.assertEqual(response.status_code, 404, "Error should result in 404")
+        self.assertIn("Unknown repository's test", response.data.decode())
+
+    def test_wrong_badges(self):
+        """ Ensure route for badges are failing with wrong badges"""
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-farsiLit/coverage.svg")
+        self.assertEqual(response.status_code, 404, "Error should result in 404")
+        self.assertIn("Unknown repository", response.data.decode())
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-farsiLit/metadata.svg")
+        self.assertEqual(response.status_code, 404, "Error should result in 404")
+        self.assertIn("Unknown repository", response.data.decode())
+        response = self.client.get("/api/hook/v2.0/badges/PerseusDl/canonical-farsiLit/texts.svg")
+        self.assertEqual(response.status_code, 404, "Error should result in 404")
+        self.assertIn("Unknown repository", response.data.decode())

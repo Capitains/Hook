@@ -1,18 +1,17 @@
 from flask import Blueprint, url_for, request, render_template, g, Markup, session, redirect, \
     jsonify, send_from_directory, abort
+from werkzeug.exceptions import NotFound
 from flask_github import GitHub
 from flask_login import LoginManager, current_user, login_required, login_user
 from flask_sqlalchemy import SQLAlchemy
 
 from pkg_resources import resource_filename
 import re
-import math
 import hmac
 import hashlib
 import json
 import requests
 from uuid import uuid4
-from time import time
 
 from Hook.models import model_maker
 from Hook.common import slugify
@@ -34,15 +33,13 @@ class HookUI(object):
 
         ("/api/hook/v2.0/user/repositories", "r_api_user_repositories", ["GET", "POST"]),
         ("/api/hook/v2.0/user/repositories/<owner>/<repository>", "r_api_user_repository_switch", ["PUT"]),
+        ('/api/hook/v2.0/user/repositories/<owner>/<repository>/history', "r_api_repo_history", ["GET", "DELETE"]),
 
         ('/api/hook/v2.0/badges/<owner>/<repository>/texts.svg', "r_repo_texts_count", ["GET"]),
         ('/api/hook/v2.0/badges/<owner>/<repository>/metadata.svg', "r_repo_metadata_count", ["GET"]),
         ('/api/hook/v2.0/badges/<owner>/<repository>/words.svg', "r_repo_words_count", ["GET"]),
         ('/api/hook/v2.0/badges/<owner>/<repository>/coverage.svg', "r_repo_badge_coverage", ["GET"]),
 
-        ('/api/rest/v1.0/code/<owner>/<repository>/test', "r_api_test_generate_route", ["GET"]),
-        ('/api/rest/v1.0/code/<owner>/<repository>/unit', "r_api_repo_unit_history", ["GET"]),
-        ('/api/rest/v1.0/code/<owner>/<repository>', "r_api_repo_history", ["GET", "DELETE"]),
 
         ("/favicon.ico", "r_favicon", ["GET"]),
         ("/favicon/<icon>", "r_favicon_specific", ["GET"])
@@ -59,9 +56,6 @@ class HookUI(object):
         'f_slugify',
         'f_checked',
         'f_btn',
-        'f_format_log',
-        'f_tei',
-        'f_epidoc',
         'f_success_class',
         "f_ctsized"
     ]
@@ -292,7 +286,6 @@ class HookUI(object):
         r.status_code = status_code
         return r
 
-
     def r_repo_texts_count(self, owner, repository):
         """ Get a Text Count Badge for a repository
 
@@ -302,8 +295,6 @@ class HookUI(object):
         response, kwargs, status, header = self.texts_count_badge(owner, repository, branch=request.args.get("branch"), uuid=request.args.get("uuid"))
         if response:
             return render_template(response, **kwargs), status, header
-        else:
-            return "", status, {}
 
     def r_repo_metadata_count(self, owner, repository):
         """ Get a Metadata Count Badge for a repository
@@ -317,8 +308,6 @@ class HookUI(object):
         )
         if response:
             return render_template(response, **kwargs), status, header
-        else:
-            return "", status, {}
 
     def r_repo_words_count(self, owner, repository):
         """ Get a Words Count Badge for a repository
@@ -328,12 +317,11 @@ class HookUI(object):
         """
         response, kwargs, status, header = self.words_count_badge(
             owner, repository,
-            language=request.args.get("lang")
+            language=request.args.get("lang"),
+            uuid=request.args.get("uuid")
         )
         if response:
             return render_template(response, **kwargs), status, header
-        else:
-            return "", status, {}
 
     def r_repo_badge_coverage(self, owner, repository):
         """ Get a Badge for a repo
@@ -344,8 +332,6 @@ class HookUI(object):
         response, kwargs, status, header = self.coverage_badge(owner, repository, branch=request.args.get("branch"), uuid=request.args.get("uuid"))
         if response:
             return render_template(response, **kwargs), status, header
-        else:
-            return "", status, {}
 
     def r_api_test_generate_route(self, owner, repository):
         """ Generate a test on the machine
@@ -366,9 +352,7 @@ class HookUI(object):
         :param owner: Name of the user
         :param repository: Name of the repository
         """
-        if request.method == "DELETE":
-            return self.cancel(owner, repository, uuid=request.args.get("uuid"))
-        elif request.args.get("uuid"):
+        if request.args.get("uuid"):
             return self.repo_report(
                 owner,
                 repository,
@@ -377,19 +361,6 @@ class HookUI(object):
             )
         else:
             return self.history(owner, repository)
-
-    def r_api_repo_unit_history(self, owner, repository):
-        """ Return json representation of one unit test
-
-        :param owner: Name of the user
-        :param repository: Name of the repository
-        """
-        return jsonify(self.repo_report_unit(
-            owner,
-            repository,
-            uuid=request.args.get("uuid"),
-            unit=request.args.get("unit", "all")
-        ))
 
     def r_favicon(self):
         return self.r_favicon_specific()
@@ -453,52 +424,6 @@ class HookUI(object):
         if boolean:
             return "btn-success"
         return "btn-danger"
-
-    @staticmethod
-    def f_format_log(string):
-        """ Format log string output from HookTest
-
-        :param string: Log
-        :return: Formatted log
-        """
-        if not string:
-            return ""
-        else:
-            if string.startswith(">>> "):
-                string = Markup("<u>{0}</u>".format(string.strip(">>> ")))
-            elif string.startswith(">>>> "):
-                string = Markup("<b>{0}</b>".format(string.strip(">>>> ")))
-            elif string.startswith(">>>>> "):
-                string = Markup("<i>{0}</i>".format(string.strip(">>>>> ")))
-            elif HookUI.VERBOSE.findall(string):
-                string = Markup("</li><li>".join(["<span class='verbose'>{0}</span>".format(found.strip(">>>>>> ")) for found in HookUI.VERBOSE.findall(string)]))
-            elif string.startswith("[success]"):
-                string = Markup("<span class='success'>{0}</span>".format(string.strip("[success]")))
-            elif string.startswith("[failure]"):
-                string = Markup("<span class='failure'>{0}</span>".format(string.strip("[failure]")))
-            return string
-
-    @staticmethod
-    def f_tei(string):
-        """ Check if value is "tei"
-
-        :param string: String to check against "tei"
-        :return: Checked class
-        """
-        if string == "tei":
-            return "checked"
-        return ""
-
-    @staticmethod
-    def f_epidoc(string):
-        """ Check if value is "epidoc"
-
-        :param string: String to check against "epidoc"
-        :return: Checked class
-        """
-        if string == "epidoc":
-            return "checked"
-        return ""
 
     @staticmethod
     def f_success_class(status):
@@ -581,7 +506,12 @@ class HookUI(object):
         test = repository.get_test(uuid)
 
         if json is True:
-            return jsonify(test)
+            dic = {
+                'reponame': 'canonical-latinLit',
+                'username': 'PerseusDl'
+            }
+            dic.update(test.dict)
+            return jsonify(dic)
         else:
             return {
                 "repository": repository,
@@ -882,7 +812,7 @@ class HookUI(object):
         response.status_code = code
         return response
 
-    def words_count_badge(self, username, reponame, language=None):
+    def words_count_badge(self, username, reponame, language=None, uuid=None):
         """ Return the necessary information to build a text count badge
 
         :param username: Name of the repository owner
@@ -890,10 +820,10 @@ class HookUI(object):
         :return: (Template, Kwargs, Status Code, Headers)
         :rtype: (str, dict, int, dict)
         """
-        repo = self.get_repo_test(username, reponame)
+        repo = self.get_repo_test(username, reponame, uuid=uuid)
 
-        if not repo or len(repo.words_count) == 0:
-            return None, None, 404, {}
+        if len(repo.words_count) == 0:
+            raise NotFound(description="No words count available")
 
         if language is None:
             cnt = sum([wc.count for wc in repo.words_count])
@@ -901,7 +831,7 @@ class HookUI(object):
         else:
             wc = [wc for wc in repo.words_count if wc.lang == language]
             if len(wc) == 0:
-                return None, None, 404, {}
+                raise NotFound(description="Unknown language")
             else:
                 cnt = wc[0].count
 
@@ -921,9 +851,6 @@ class HookUI(object):
         """
         repo = self.get_repo_test(username, reponame, branch, uuid)
 
-        if not repo:
-            return None, None, 404, {}
-
         cnt, total = repo.texts_passing, repo.texts_total
         template = "svg/object_count.xml"
         return template, {"object_name": "Texts", "cnt": cnt, "total": total}, 200, \
@@ -940,9 +867,6 @@ class HookUI(object):
         :rtype: (str, dict, int, dict)
         """
         repo = self.get_repo_test(username, reponame, branch, uuid)
-
-        if not repo:
-            return None, None, 404, {}
 
         cnt, total = repo.metadata_passing, repo.metadata_total
         template = "svg/object_count.xml"
@@ -965,9 +889,6 @@ class HookUI(object):
             branch=branch,
             uuid=uuid
         )
-
-        if not repo or not repo.coverage:
-            return "svg/build.coverage.unknown.xml", {}, 200, {'Content-Type': 'image/svg+xml; charset=utf-8'}
 
         if repo.coverage > 90.0:
             template = "svg/build.coverage.success.xml"
@@ -1010,6 +931,8 @@ class HookUI(object):
                 )
             repo = repo.order_by(self.Models.RepoTest.run_at.desc())
             repo = repo.first()
+            if repo is None:
+                raise NotFound(description="Unknown repository's test")
         else:
             repo = self.filter_or_404(
                 self.Models.Repository,
@@ -1026,6 +949,7 @@ class HookUI(object):
         :return:
         """
         repository = self.Models.Repository.get_or_raise(owner=username, name=reponame)
+        pagination = repository.tests.order_by(self.Models.RepoTest.run_at.desc()).paginate()
         history = {
             "username": username,
             "reponame": reponame,
@@ -1035,9 +959,25 @@ class HookUI(object):
                     "uuid": event.uuid,
                     "coverage": event.coverage
                 }
-                for event in repository.tests.paginate().items
+                for event in pagination.items
             ]
         }
+        if pagination.has_next or pagination.has_prev:
+            history["cursor"] = {}
+            if pagination.has_next:
+                history["cursor"]["next"] = self.url_for(
+                    ".api_repo_history",
+                    owner=username, repository=reponame, page=pagination.next_num
+                )
+            if pagination.has_prev:
+                history["cursor"]["prev"] = self.url_for(
+                    ".api_repo_history",
+                    owner=username, repository=reponame, page=pagination.prev_num
+                )
+            history["cursor"]["last"] = self.url_for(
+                ".api_repo_history",
+                owner=username, repository=reponame, page=pagination.pages
+            )
         return jsonify(**history)
 
     def comment(self, test):
@@ -1204,7 +1144,7 @@ class HookUI(object):
     def filter_or_404(self, model, *ident):
         rv = model.query.filter(*ident).first()
         if rv is None:
-            abort(404)
+            raise NotFound(description="Unknown repository")
         return rv
 
     @staticmethod

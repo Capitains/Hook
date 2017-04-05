@@ -1,70 +1,13 @@
-import os
 import re
 from urllib import parse
-from logging import getLogger
 from json import loads
 from bs4 import BeautifulSoup
 
-from flask import Flask, redirect, request, Response, session, g
-from flask_sqlalchemy import SQLAlchemy
-import flask_github
-from flask_login import LoginManager
-
-from Hook.ext import HookUI
-
-from tests.make_moke import make_moke
+from flask import Response, session, g
 from tests.baseTest import BaseTest
-from tests.github_fixtures import make_fixture
 
 
 class TestGithubCommunication(BaseTest):
-    def setUp(self):
-        try:
-            os.remove("Hook/test.db")
-        except:
-            """ Something !"""
-        super(TestGithubCommunication, self).setUp()
-        app = Flask("Hook")
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///./test.db'
-        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-        app.config['GITHUB_CLIENT_ID'] = "github_client_id"
-        app.config['GITHUB_CLIENT_SECRET'] = "github_client_secret"
-        app.config["SECRET_KEY"] = 'super secret key'
-        self.db = SQLAlchemy(app)
-
-        # Mokes
-        self.hook = HookUI(database=self.db, github=flask_github.GitHub(app=app), login=LoginManager(app=app), app=app)
-        self.Models = self.hook.Models
-        self.db.create_all()
-        self.Mokes = make_moke(self.db, self.Models)
-
-        logger = getLogger(__name__)
-        self.called_auth = []
-        self.called_auth = []
-        self.fixtures = make_fixture(self.Mokes.ponteineptique.github_access_token)
-
-        @app.route("/authorize")
-        def handle_auth():
-            logger.info("in /oauth/authorize")
-            self.called_auth.append(1)
-            self.assertEqual(request.args['client_id'], app.config["GITHUB_CLIENT_ID"])
-            logger.debug("client_id OK")
-            self.assertEqual(request.args['redirect_uri'], 'http://localhost/callback')
-            logger.debug("redirect_uri OK")
-            return redirect(request.args['redirect_uri'] + '?code=KODE')
-
-        self.app = app
-        self.app.debug = True
-        self.client = app.test_client()
-
-    def tearDown(self):
-        self.db.session.close()
-        self.db.drop_all()
-        try:
-            os.remove("Hook/test.db")
-        except:
-            """ Something !"""
-
     def test_login_reroute(self):
         """ Let's ensure we can login
         """
