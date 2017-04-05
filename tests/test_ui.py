@@ -2,6 +2,7 @@ import re
 from urllib import parse
 from json import loads
 from bs4 import BeautifulSoup
+import datetime
 
 from flask import Response, session, g
 from tests.baseTest import BaseTest
@@ -235,3 +236,230 @@ class TestGithubCommunication(BaseTest):
             # Wrong repo is 404
             activate = self.client.put("/api/hook/v2.0/user/repositories/PerseusDl/canonical-greekLit-fake")
             self.assertEqual(activate.status_code, 404, "Request should be positive")
+
+    def test_wrong_repo_disconnected(self):
+        response = self.client.get("/repo/PerseusDl/canonical-greekolatinLit")
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("Unknown Repository", response.data.decode())
+
+    def test_single_repo_disconnected(self):
+        """ Test that index links all known repositories """
+        self.Mokes.add_repo_to_pi()
+        self.Mokes.make_new_latinLit_test(coverage=55.0, session=self.db.session)
+        response = self.client.get("/repo/PerseusDl/canonical-latinLit").data.decode()
+
+        self.assertNotIn(
+            "Settings", response, "There is no Settings for unlogged people"
+        )
+        self.assertNotIn("$('#state')", response, "We have the switch script")
+        index = BeautifulSoup(response, 'html.parser')
+
+        tests = index.select("#body tbody tr")
+        self.assertEqual(len(tests), 3, "There should be 3 tests")
+        last_test = tests[0]
+        self.assertEqual(
+            len(last_test.select('a[href="/repo/PerseusDl/canonical-latinLit/3"]')), 1,
+            "There should be a link to the last test"
+        )
+        self.assertEqual(
+            len(last_test.select('a[href="https://github.com/PerseusDL/canonical-latinLit/commit/'
+                                 '7d3d6a0b62f0d244b684843c7546906d742013fd#all_commit_comments"]')),
+            1,
+            "There should be a link to the commit on GitHub"
+        )
+        self.assertIn("<td>55.0</td>", str(last_test), "There should be the coverage shown")
+        second_test = tests[1]
+        self.assertEqual(
+            len(second_test.select('a[href="/repo/PerseusDl/canonical-latinLit/2"]')), 1,
+            "There should be a link to the second test"
+        )
+        self.assertIn("<td>99.85</td>", str(second_test), "There should be the coverage shown")
+
+    def test_single_repo_connected(self):
+        """ Test that index links all known repositories """
+        self.Mokes.add_repo_to_pi()
+        self.Mokes.make_new_latinLit_test(coverage=55.0, session=self.db.session)
+        with self.logged_in(access_token="nbiousndegoijubdognlksdngndsgmngds"):
+            response = self.client.get("/repo/PerseusDl/canonical-latinLit").data.decode()
+
+            self.assertIn(
+                "Settings", response, "There is no Settings for unlogged people"
+            )
+            self.assertIn("$('#state')", response, "We have the switch script")
+            index = BeautifulSoup(response, 'html.parser')
+
+            tests = index.select("#body tbody tr")
+            self.assertEqual(len(tests), 3, "There should be 3 tests")
+            last_test = tests[0]
+            self.assertEqual(
+                len(last_test.select('a[href="/repo/PerseusDl/canonical-latinLit/3"]')), 1,
+                "There should be a link to the last test"
+            )
+            self.assertEqual(
+                len(last_test.select('a[href="https://github.com/PerseusDL/canonical-latinLit/commit/'
+                                     '7d3d6a0b62f0d244b684843c7546906d742013fd#all_commit_comments"]')),
+                1,
+                "There should be a link to the commit on GitHub"
+            )
+            self.assertIn("<td>55.0</td>", str(last_test), "There should be the coverage shown")
+            second_test = tests[1]
+            self.assertEqual(
+                len(second_test.select('a[href="/repo/PerseusDl/canonical-latinLit/2"]')), 1,
+                "There should be a link to the second test"
+            )
+            self.assertIn("<td>99.85</td>", str(second_test), "There should be the coverage shown")
+
+    def test_single_repo_lots_of_tests(self):
+        """ Test that index links all known repositories """
+        self.Mokes.add_repo_to_pi()
+        self.Mokes.make_lots_of_tests(
+            45, self.db.session, self.Mokes.greekLit,
+            coverage_ends_at=75.0, datetime_starts_at=datetime.datetime(2017, 4, 5, 7, 4, 22, tzinfo=None)
+        )
+
+        page1 = BeautifulSoup(self.client.get("/repo/PerseusDl/canonical-greekLit").data.decode(), 'html.parser')
+        self.assertEqual(
+            page1.select('a.next')[0]["href"], "/repo/PerseusDl/canonical-greekLit?page=2",
+            "There should be a next link"
+        )
+        self.assertEqual(
+            page1.select('a.last')[0]["href"], "/repo/PerseusDl/canonical-greekLit?page=3",
+            "There should be a last link"
+        )
+        self.assertEqual(
+            len(page1.select('a.prev')), 0,
+            "There should not be a prev link"
+        )
+        self.assertEqual(
+            len(page1.select('a.first')), 0,
+            "There should not be a firstLink"
+        )
+        tests = page1.select("#body tbody tr")
+        self.assertEqual(len(tests), 20, "There should be 20 tests")
+
+        last_test = tests[0]
+        self.assertEqual(
+            len(last_test.select('a[href="/repo/PerseusDl/canonical-greekLit/47"]')), 1,
+            "There should be a link to the last test"
+        )
+        self.assertEqual(
+            len(last_test.select('a[href="https://github.com/PerseusDL/canonical-latinLit/commit/'
+                                 'fb644351560d8296fe6da332236b1f8d61b2828a#all_commit_comments"]')),
+            1,
+            "There should be a link to the commit on GitHub"
+        )
+        self.assertIn("<td>75.0</td>", str(last_test), "There should be the coverage shown")
+
+        ###############
+        #
+        # Second Page
+        #
+        ###############
+        page2 = BeautifulSoup(self.client.get("/repo/PerseusDl/canonical-greekLit?page=2").data.decode(), 'html.parser')
+        self.assertEqual(
+            page2.select('a.prev')[0]["href"], "/repo/PerseusDl/canonical-greekLit?page=1",
+            "There should be a Previous link"
+        )
+        self.assertEqual(
+            page2.select('a.first')[0]["href"], "/repo/PerseusDl/canonical-greekLit?page=1",
+            "There should be a First link"
+        )
+        self.assertEqual(
+            page2.select('a.next')[0]["href"], "/repo/PerseusDl/canonical-greekLit?page=3",
+            "There should be a Next link"
+        )
+        self.assertEqual(
+            page2.select('a.last')[0]["href"], "/repo/PerseusDl/canonical-greekLit?page=3",
+            "There should be a last Link"
+        )
+        tests = page2.select("#body tbody tr")
+        self.assertEqual(len(tests), 20, "There should be 20 tests")
+
+        last_test = tests[0]
+        self.assertEqual(
+            len(last_test.select('a[href="/repo/PerseusDl/canonical-greekLit/27"]')), 1,
+            "There should be a link to the last test"
+        )
+        self.assertEqual(
+            len(last_test.select('a[href="https://github.com/PerseusDL/canonical-latinLit/commit/'
+                                 'f6e1126cedebf23e1463aee73f9df08783640400#all_commit_comments"]')),
+            1,
+            "There should be a link to the commit on GitHub"
+        )
+        self.assertIn("<td>65.0</td>", str(last_test), "There should be the coverage shown")
+
+        ###############
+        #
+        # Third Page
+        #
+        ###############
+        page3 = BeautifulSoup(self.client.get("/repo/PerseusDl/canonical-greekLit?page=3").data.decode(), 'html.parser')
+        self.assertEqual(
+            page3.select('a.prev')[0]["href"], "/repo/PerseusDl/canonical-greekLit?page=2",
+            "There should be a Previous link"
+        )
+        self.assertEqual(
+            page3.select('a.first')[0]["href"], "/repo/PerseusDl/canonical-greekLit?page=1",
+            "There should be a First link"
+        )
+        self.assertEqual(
+            len(page3.select('a.next')), 0,
+            "There should not be a Next link"
+        )
+        self.assertEqual(
+            len(page3.select('a.last')), 0,
+            "There should not be a last Link"
+        )
+        tests = page3.select("#body tbody tr")
+        self.assertEqual(len(tests), 5, "There should be 5 tests")
+
+        last_test = tests[0]
+        self.assertEqual(
+            len(last_test.select('a[href="/repo/PerseusDl/canonical-greekLit/7"]')), 1,
+            "There should be a link to the last test"
+        )
+        self.assertEqual(
+            len(last_test.select('a[href="https://github.com/PerseusDL/canonical-latinLit/commit/'
+                                 'ac3478d69a3c81fa62e60f5c3696165a4e5e6ac4#all_commit_comments"]')),
+            1,
+            "There should be a link to the commit on GitHub"
+        )
+        self.assertIn("<td>55.0</td>", str(last_test), "There should be the coverage shown")
+
+    def test_single_repotest(self):
+        """ Test that index links all known repositories """
+        self.Mokes.add_repo_to_pi()
+        response = self.client.get("/repo/PerseusDl/canonical-latinLit/2").data.decode()
+        index = BeautifulSoup(response, 'html.parser')
+        self.assertEqual(index.select('dd[aria-label="Coverage"]')[0].text, "99.85")
+        self.assertEqual(index.select('dd[aria-label="Text Count"]')[0].text, "636/637")
+        self.assertEqual(index.select('dd[aria-label="Metadata Count"]')[0].text, "718/720")
+        self.assertEqual(index.select('dd[aria-label="Citation Nodes"]')[0].text, "113179")
+        self.assertEqual(index.select('dd[aria-label="Words in eng"]')[0].text, "125")
+        self.assertEqual(index.select('dd[aria-label="Words in lat"]')[0].text, "1050")
+        self.assertEqual(index.select('dd[aria-label="Words in ger"]')[0].text, "1088")
+        self.assertEqual(index.select('dd[aria-label="Travis Build"] a')[0]["href"],
+                         "https://travis-ci.org/PerseusDl/canonical-latinLit/builds/216262555")
+        self.assertEqual(index.select('dd[aria-label="Github Comment"] a')[0]["href"],
+                         "https://github.com/PerseusDL/canonical-latinLit/commit/7d3d6a0b62f0d244b684843"
+                         "c7546906d742013fd#all_commit_comments")
+        self.assertEqual(
+            len(index.select("div.dl-horizontal.card div.left.success")), 1,
+            "Success class should be applied"
+        )
+
+        self.Mokes.make_new_latinLit_test(session=self.db.session, coverage=75.01)
+        response = self.client.get("/repo/PerseusDl/canonical-latinLit/3").data.decode()
+        index = BeautifulSoup(response, 'html.parser')
+        self.assertEqual(
+            len(index.select("div.dl-horizontal.card div.left.acceptable")), 1,
+            "Acceptable class should be applied"
+        )
+
+        self.Mokes.make_new_latinLit_test(session=self.db.session, coverage=74.99)
+        response = self.client.get("/repo/PerseusDl/canonical-latinLit/4").data.decode()
+        index = BeautifulSoup(response, 'html.parser')
+        self.assertEqual(
+            len(index.select("div.dl-horizontal.card div.left.failed")), 1,
+            "Failure class should be applied"
+        )

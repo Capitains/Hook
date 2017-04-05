@@ -27,17 +27,21 @@
                     <br clear="all" />
                   <dl class="dl-horizontal" style="margin-top:15px;">
                       <dt>Coverage</dt>
-                        <dd>{{test.coverage}}</dd>
+                        <dd aria-label="Coverage">{{test.coverage}}</dd>
                       <dt>Texts</dt>
-                        <dd>{{test.texts_passing}}/{{test.texts_total}}</dd>
+                        <dd aria-label="Text Count">{{test.texts_passing}}/{{test.texts_total}}</dd>
+                      <dt>Travis Build</dt>
+                        <dd aria-label="Travis Build"><a href="{{test.travis_uri}}">Link</a></dd>
+                      <dt>Github Comment</dt>
+                        <dd aria-label="Github Comment"><a href="{{test.comment_uri}}">Link</a></dd>
                       <dt>Metadata</dt>
-                        <dd>{{test.metadata_passing}}/{{test.metadata_total}}</dd>
+                        <dd aria-label="Metadata Count">{{test.metadata_passing}}/{{test.metadata_total}}</dd>
                       <dt>Citation Nodes</dt>
-                        <dd>{{test.nodes_count}}</dd>
+                        <dd aria-label="Citation Nodes">{{test.nodes_count}}</dd>
                       {% if test.words_count|count > 0 %}
                           {% for wc in test.words_count %}
                               <dt>Words [{{wc.lang}}]</dt>
-                                  <dd>{{wc.count}}</dd>
+                                  <dd aria-label="Words in {{wc.lang}}">{{wc.count}}</dd>
                           {% endfor %}
                       {% endif %}
                   </dl>

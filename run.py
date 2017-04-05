@@ -18,12 +18,12 @@ from tests.baseTest import github_user
 from Hook.ext import HookUI
 
 try:
-    os.remove("Hook/test.db")
+    os.remove("Hook/test1.db")
 except:
     """ Something !"""
 
 app = Flask("Hook")
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///./test.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///./test1.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['GITHUB_CLIENT_ID'] = "github_client_id"
 app.config['GITHUB_CLIENT_SECRET'] = "github_client_secret"
@@ -98,6 +98,10 @@ if __name__ == "__main__":
     with logged_in(access_token="nbiousndegoijubdognlksdngndsgmngds", extra_mocks=extraMocks):
         Mokes.add_repo_to_pi()
         test = Mokes.make_new_latinLit_test(db.session, coverage=55.0)
+        Mokes.make_lots_of_tests(
+            45, db.session, Mokes.latinLit,
+            coverage_ends_at=75.0, datetime_starts_at=datetime.datetime(2017, 4, 5, 7, 4, 22, tzinfo=None)
+        )
 
         Mokes.latinLit.active = True
         test.run_at = test.run_at + datetime.timedelta(3, 3)

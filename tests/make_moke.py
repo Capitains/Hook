@@ -154,7 +154,7 @@ def make_moke(db, models):
             tests = []
             coverage_starts_at = coverage_ends_at - float(number)/2.0
             for i in range(1, number+1):
-                sha = hashlib.sha1(bytes(i)).hexdigest()
+                sha = hashlib.sha1(str(i).encode('utf-8')).hexdigest()
                 coverage = coverage_starts_at + i*0.5
                 date = datetime_starts_at + timedelta(hours=i)
 

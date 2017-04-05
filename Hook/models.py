@@ -2,13 +2,13 @@ __author__ = 'Thibault Clerice'
 
 import datetime
 import re
-from flask import g, session
 from tabulate import tabulate
 from Hook.exceptions import *
 from collections import defaultdict
 from math import isclose
 from operator import itemgetter
 from flask_login import UserMixin
+from werkzeug.exceptions import NotFound
 
 
 pr_finder = re.compile("pull\/([0-9]+)\/head")
@@ -175,8 +175,10 @@ def model_maker(db, prefix=""):
             :param name: Name of the repository
             :return:
             """
-            query = Repository.query.filter_by(owner=owner, name=name)
-            return query.first()
+            query = Repository.query.filter_by(owner=owner, name=name).first()
+            if query is None:
+                raise NotFound(description="Unknown Repository")
+            return query
 
         @staticmethod
         def find_or_create(owner, name, active=False, _commit_on_create=True):

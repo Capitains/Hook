@@ -28,7 +28,7 @@ class HookUI(object):
         ('/api/github/payload', "r_github_payload", ["GET", "POST"]),
         ("/api/hooktest", "r_api_hooktest_endpoint", ["POST"]),
 
-        ('/repo/<owner>/<repository>', "r_repository", ["GET", "POST"]),
+        ('/repo/<owner>/<repository>', "r_repository", ["GET"]),
         ('/repo/<owner>/<repository>/<uuid>', "r_repository_test", ["GET"]),
 
         ("/api/hook/v2.0/user/repositories", "r_api_user_repositories", ["GET", "POST"]),
@@ -376,7 +376,6 @@ class HookUI(object):
         :param commit: Commit SHA
         :return: Human readable reference
         """
-        print(branch, commit)
         if HookUI.PR_FINDER.match(branch):
             return "PR #{0}".format(branch.strip("pull/").strip("/head"))
         return commit[0:8]
@@ -467,9 +466,6 @@ class HookUI(object):
 
         start, end = 0, 20
         repository = self.Models.Repository.get_or_raise(owner=owner, name=repository)
-
-        if request.method == "POST" and current_user.is_authenticated and repository.has_rights(current_user):
-            repository.config(request.form)
 
         # PAGINATION !!!
         tests = repository.tests.order_by(self.Models.RepoTest.run_at.desc()).paginate()
