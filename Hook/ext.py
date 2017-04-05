@@ -34,6 +34,7 @@ class HookUI(object):
         ("/api/hook/v2.0/user/repositories", "r_api_user_repositories", ["GET", "POST"]),
         ("/api/hook/v2.0/user/repositories/<owner>/<repository>", "r_api_user_repository_switch", ["PUT"]),
         ('/api/hook/v2.0/user/repositories/<owner>/<repository>/history', "r_api_repo_history", ["GET", "DELETE"]),
+        ('/api/hook/v2.0/user/repositories/<owner>/<repository>/token', "r_api_update_token", ["PATCH"]),
 
         ('/api/hook/v2.0/badges/<owner>/<repository>/texts.svg', "r_repo_texts_count", ["GET"]),
         ('/api/hook/v2.0/badges/<owner>/<repository>/metadata.svg', "r_repo_metadata_count", ["GET"]),
@@ -47,7 +48,8 @@ class HookUI(object):
 
     route_login_required = [
         "r_api_user_repositories",
-        "r_api_user_repository_switch"
+        "r_api_user_repository_switch",
+        "r_api_update_token"
     ]
 
     FILTERS = [
@@ -215,7 +217,7 @@ class HookUI(object):
     def r_login_error(self):
         """ Route for logout
         """
-        return request.query_string
+        return self.url_for(".index")
 
     def r_github_oauth(self, *args, **kwargs):
         """ GitHub oauth route
@@ -361,6 +363,16 @@ class HookUI(object):
             )
         else:
             return self.history(owner, repository)
+
+    def r_api_update_token(self, owner, repository):
+        """ Regenerate the Travis Environment Token
+
+        :param owner: Owner
+        :param repository: Repository
+        :return: Json Status
+        """
+        repo = self.Models.Repository.get_or_raise(owner, repository)
+        return jsonify({"status": repo.regenerate_travis_env(current_user, self.db.session)})
 
     def r_favicon(self):
         return self.r_favicon_specific()

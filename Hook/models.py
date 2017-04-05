@@ -2,6 +2,9 @@ __author__ = 'Thibault Clerice'
 
 import datetime
 import re
+import random
+import hashlib
+
 from tabulate import tabulate
 from Hook.exceptions import *
 from collections import defaultdict
@@ -12,6 +15,11 @@ from werkzeug.exceptions import NotFound
 
 
 pr_finder = re.compile("pull\/([0-9]+)\/head")
+
+
+def make_travis_env():
+    by = hashlib.sha1(str(random.getrandbits(128)).encode()).hexdigest()
+    return by
 
 
 def model_maker(db, prefix=""):
@@ -105,6 +113,8 @@ def model_maker(db, prefix=""):
         name = db.Column(db.String(200), nullable=False)
         active = db.Column(db.Boolean, nullable=False, default=False)
         main_branch = db.Column(db.String(200), nullable=False, default="master")
+        travis_env = db.Column(db.String(200), default=make_travis_env)
+
         users = db.relationship(
             'User', secondary=RepoOwnership,
             backref=db.backref('user', lazy='dynamic')
@@ -198,6 +208,21 @@ def model_maker(db, prefix=""):
                     db.session.commit()
             return repo
 
+        def regenerate_travis_env(self, user, session=None):
+            """ Regenerate the Travis Env
+
+            :param user: User to check rights for
+            :param session: Session to commit with
+            :return:
+            """
+            if self.has_rights(user):
+                self.travis_env = make_travis_env()
+                if session:
+                    session.commit()
+                return True
+            else:
+                raise RightsException("Not enough rights")
+
         def register_test(
                 self, branch, travis_uri, travis_build_id, travis_user, travis_user_gravatar, texts_total,
                 texts_passing, metadata_total, metadata_passing, coverage, nodes_count,
@@ -280,6 +305,7 @@ def model_maker(db, prefix=""):
         metadata_passing = db.Column(db.Integer, nullable=False, default=0)
         coverage = db.Column(db.Float, nullable=False, default=0.0)
         nodes_count = db.Column(db.Integer, nullable=False, default=0)
+
 
         units = db.relationship(
             "UnitTest",

@@ -15,7 +15,7 @@
               <div>
                   <img alt="Coverage" src="{{ url_for('.repo_badge_coverage', owner=repository.owner, repository=repository.name) }}" />
                   <img alt="Text badges" src="{{ url_for('.repo_texts_count', owner=repository.owner, repository=repository.name) }}" />
-                  <img alt="Metadata badges" src="{{ url_for('.repo_metadata_count', owner=repository.owner, repository=repository.name) }}" />
+                  <img alt="Metadata badges" src="{{ url_for('.repo_metadata_count', owner=repository.owner, repository=repository.name) }}" /><br />
                   {% if repository.last_master_test.words_count|count > 0 %}
                       <img alt="Words badges" src="{{ url_for('.repo_words_count', owner=repository.owner, repository=repository.name) }}" />
                       {% for wc in repository.last_master_test.words_count %}
@@ -32,18 +32,21 @@
           <div class="col-md-4">
               <h2>
                 Settings
-                <div class="pull-right">
-                  <button id="state" class="btn {{repository.active|btn}} btn-xs">
+              </h2>
+              <p><button id="state" class="btn {{repository.active|btn}} btn-xs">
                     <span class="glyphicon glyphicon-off"></span>
                     <span class="fa fa-refresh" style="display: none;"></span>
                   </button>
-                </div>
-              </h2>
-              {% if repository.updated %}
-                  <div class="alert alert-success" role="alert">
-                    Settings were updated
-                  </div>
-              {% endif %}
+                  Toggle the repository for Hook &amp; Travis
+              </p>
+              <p>In order for HookTest to communicate with the current system, you need to set the Environment Variable
+                  <em>HOOK_SECRET</em> to :
+                  <pre class="travis_env">{{repository.travis_env}}</pre>
+                <a href="{{url_for(".api_update_token", owner=repository.owner, repository=repository.name)}}" id="refresh-sha">
+                    <span class="btn btn-link"><span class="fa fa-refresh" style="display: none;"></span></span>
+                    <small>Click here to refresh</small>
+                </a>
+              </p>
           </div>
           <div class="col-md-8">
           {% else %}
@@ -150,6 +153,24 @@ $(document).ready(function() {
         } else {
           alert("Error during switch of the repository")
         }
+      },
+      error : function(data) {
+        alert("Error during switch of the repository")
+      }
+    });
+  });
+  $('#refresh-sha').on('click', function(event) {
+    event.preventDefault();
+    var el = $(this),
+        spinner = el.find(".fa-refresh"),
+        on = el.find(".glyphicon-off");
+    spinner.show().addClass("fa-spin");
+
+    $.ajax({
+      url: el.attr("href"),
+      type: 'PATCH',
+      success: function(data) {
+        location.reload()
       },
       error : function(data) {
         alert("Error during switch of the repository")

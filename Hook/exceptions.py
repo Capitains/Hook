@@ -1,3 +1,6 @@
+from werkzeug.exceptions import Forbidden
+
+
 class ModelException(Exception):
     status_code = 400
 
@@ -9,5 +12,5 @@ class ModelException(Exception):
         self.payload = payload
 
 
-class RightsException(ModelException):
+class RightsException(ModelException, Forbidden):
     status_code = 403

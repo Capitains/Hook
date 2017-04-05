@@ -463,3 +463,35 @@ class TestGithubCommunication(BaseTest):
             len(index.select("div.dl-horizontal.card div.left.failed")), 1,
             "Failure class should be applied"
         )
+
+    def test_update_repository_token(self):
+        """ Test that index links all known repositories """
+        self.Mokes.add_repo_to_pi()
+        response = self.client.get("/repo/PerseusDl/canonical-latinLit").data.decode()
+        index = BeautifulSoup(response, 'html.parser')
+        self.assertEqual(
+            len(index.select(".travis_env")), 0, "Sha should not be shown when not connected"
+        )
+
+        # Update the REPO !
+        response = self.client.patch("/api/hook/v2.0/user/repositories/PerseusDl/canonical-latinLit/token")
+        self.assertEqual(response.status_code, 401, "Request Forbidden")
+
+        with self.logged_in(access_token="nbiousndegoijubdognlksdngndsgmngds"):
+            response = self.client.get("/repo/PerseusDl/canonical-latinLit").data.decode()
+            index = BeautifulSoup(response, 'html.parser')
+            travis_env1 = index.select(".travis_env")
+            self.assertEqual(len(travis_env1), 1, "Sha should be shown when not connected")
+            self.assertEqual(len(travis_env1[0].text), 40)
+
+            # Update the REPO !
+            response = loads(self.client.patch("/api/hook/v2.0/user/repositories/PerseusDl/canonical-latinLit/token")\
+                .data.decode())
+            self.assertEqual(response, {"status": True})
+
+            response = self.client.get("/repo/PerseusDl/canonical-latinLit").data.decode()
+            index = BeautifulSoup(response, 'html.parser')
+            travis_env2 = index.select(".travis_env")
+            self.assertEqual(len(travis_env2), 1, "Sha should be shown when not connected")
+            self.assertEqual(len(travis_env2[0].text), 40)
+            self.assertNotEqual(travis_env1[0].text, travis_env2[0].text, "Sha should be different")
