@@ -373,7 +373,24 @@ class HookUI(object):
         :param test: Current Test
         :return: Human readable branch name
         """
-        return Markup('<a href="/path/to">Pull Request or Commit</a>')
+        repo = test.repository_dyn
+        if test.event_type == "push":
+            return Markup(
+                '<a href="https://github.com/{owner}/{repository}/commit/{full_sha}">@{sha}</a>'.format(
+                    owner=repo.owner,
+                    repository=repo.name,
+                    full_sha=test.sha,
+                    sha=test.sha[:8]
+                )
+            )
+        else:
+            return Markup(
+                '<a href="https://github.com/{owner}/{repository}/pull/{pr_id}">PR #{pr_id}</a>'.format(
+                    owner=repo.owner,
+                    repository=repo.name,
+                    pr_id=test.source
+                )
+            )
 
     @staticmethod
     def f_btn(boolean):
@@ -510,10 +527,14 @@ class HookUI(object):
             raise BadRequest(description=str(E))
 
         test, diff = repo.register_test(**kwargs)
-        if "event_type":
-            uri = ""
+        if "event_type" == "push":
+            uri = "/repos/{owner}/{repository}/commits/{sha}/comments".format(
+                owner=owner, repository=repository, sha=test.sha
+            )
         else:
-            uri = ""
+            uri = "/repos/{owner}/{repository}/issues/{sha}/comments".format(
+                owner=owner, repository=repository, sha=test.source
+            )
 
         # Commenting
         self.comment(test, diff, uri=uri)

@@ -76,7 +76,7 @@
                               <td>{{test.run_at}}</td>
                               <td><a href="{{test.travis_uri}}">{{test.travis_build_id}}</a></td>
                               <td>{{test|nice_link_to_source}}</td>
-                              <td><img class="user user-20" src="{{test.travis_user_gravatar}}?s=20" alt="{{test.user}}" /></td>
+                              <td><img class="user user-20" src="{{test.avatar}}?s=20" alt="{{test.user}}" /></td>
                               <td>{{test.coverage}}</td>
                               <td>
                                   <a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('.repository_test', owner=repository.owner, repository=repository.name, uuid=test.uuid)}}" title="Status checking"><span class="glyphicon glyphicon-cog"></span></a>

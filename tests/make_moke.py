@@ -184,5 +184,35 @@ def make_moke(db, models):
                 tests.append(test)
             session.commit()
             return tests
+
+        def make_new_latinLit_PR(self, session, coverage=99.85):
+            test3, *_ = self.models.Repository.query.filter(
+                models.Repository.owner == "PerseusDl",
+                models.Repository.name == "canonical-latinLit"
+            ).first().register_test(
+                source="55",
+                event_type="pull_request",
+                travis_uri="https://travis-ci.org/PerseusDl/canonical-latinLit/builds/216262588",
+                travis_build_id="29",
+                user="sonofmun",
+                avatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
+                texts_total=637,
+                texts_passing=636,
+                metadata_total=720,
+                metadata_passing=718,
+                coverage=coverage,
+                nodes_count=113179,
+                units=test2_units,
+                words_count={
+                    "eng": 125,
+                    "lat": 1050,
+                    "ger": 1088
+                },
+                sha="7d3d6a0b62f0d244b684843c7546906d742013fd",
+                comment_uri="https://github.com/PerseusDL/canonical-latinLit/commit/7d3d6a0b62f0d244b684843c7546906d742013fd#all_commit_comments"
+            )
+            session.commit()
+            return test3
+
     db.session.commit()
     return Mokes(db, latinLit)

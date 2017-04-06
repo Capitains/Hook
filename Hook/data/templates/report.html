@@ -15,14 +15,14 @@
                 <div class="row">
                   <div class="col-md-3">
                       <ul class="list-unstyled">
-                        <li>Event: <span class="dd">{{test|nice_link_to_source}}</span></li>
+                        <li>Diff: <span class="dd"><a href="{{test.comment_uri}}">Comment on Github</a></span></li>
                         <li>Started: <span class="dd">{{test.run_at}}</span></li>
                       </ul>
                   </div>
                   <div class="col-md-9 text-right">
-                    <img class="user" src="{{test.travis_user_gravatar}}?s=50" alt="{{test.user}}'s avatar" />
+                    <img class="user" src="{{test.avatar}}?s=50" alt="{{test.user}}'s avatar" />
                     {{test.user}}
-                    <a href="{{test.link}}" target="_blank">{{test.sha[0:8]}}</a>
+                    {{test|nice_link_to_source}}
                   </div>
                     <br clear="all" />
                   <dl class="dl-horizontal" style="margin-top:15px;">
