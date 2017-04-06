@@ -194,6 +194,9 @@ img.user-20 {
 .card > .left.success, .hookbadge.success {
   background-color: #5cb85c;
 }
+.card > .left.acceptable, .hookbadge.acceptable {
+  background-color: #dfb317;
+}
 .card > .left.failed, .hookbadge.failed {
   background-color: #d9534f;
 }
@@ -211,10 +214,6 @@ h1 {
 }
 h1 .pull-left {
   margin-right:10px;
-}
-h1 img {
-  float:right;
-  margin:5px;
 }
 h2 {
   color:grey;
@@ -244,4 +243,8 @@ h2 {
 #repo-list {
   max-height: 400px;
   overflow: auto;
+}
+.table > tbody > tr > td, .table > tbody > tr > th, .table > tfoot > tr > td, .table > tfoot > tr > th, .table > thead > tr > td, .table > thead > tr > th {
+    padding:4px;
+    width:auto;
 }

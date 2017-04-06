@@ -8,78 +8,45 @@
               {{repository.owner}}/{{repository.name}}<a href="https://github.com/{{repository.owner}}/{{repository.name}}">
                 <span class="fa fa-github"></span>
               </a> 
-              {% if not repository.isWritable(current_user) %}
-              <div class="btn {{repository.tested|btn}} btn-xs"><span class="glyphicon glyphicon-off"></span></div>
+              {% if not repository.has_rights(current_user) %}
+                <div class="btn {{repository.active|btn}} btn-xs"><span class="glyphicon glyphicon-off"></span></div>
               {% endif %}
-              {% if tests|length > 0 %}
-              <img alt="Status badge" src="{{ url_for('.repo_badge_status', owner=repository.owner, repository=repository.name) }}" />
-              <img alt="Status badge" src="{{ url_for('.repo_badge_coverage', owner=repository.owner, repository=repository.name) }}" />
-              <img alt="CTS badge" src="{{ url_for('.repo_cts_status', owner=repository.owner, repository=repository.name) }}" />
+              {% if tests.items %}
+              <div>
+                  <img alt="Coverage" src="{{ url_for('.repo_badge_coverage', owner=repository.owner, repository=repository.name) }}" />
+                  <img alt="Text badges" src="{{ url_for('.repo_texts_count', owner=repository.owner, repository=repository.name) }}" />
+                  <img alt="Metadata badges" src="{{ url_for('.repo_metadata_count', owner=repository.owner, repository=repository.name) }}" /><br />
+                  {% if repository.last_master_test.words_count|count > 0 %}
+                      <img alt="Words badges" src="{{ url_for('.repo_words_count', owner=repository.owner, repository=repository.name) }}" />
+                      {% for wc in repository.last_master_test.words_count %}
+                          <img alt="{{wc.lang}} badges" src="{{ url_for('.repo_words_count', owner=repository.owner, repository=repository.name, lang=wc.lang) }}" />
+                      {% endfor %}
+                  {% endif %}
+              </div>
+
               {% endif %}
           </h1>
       </header>
       <div class="row">
-          {% if repository.isWritable(current_user) %}
+          {% if repository.has_rights(current_user) %}
           <div class="col-md-4">
               <h2>
                 Settings
-                <div class="pull-right">
-                  {% if repository.tested %}
-                  <a href="{{url_for('.api_test_generate_route', owner=repository.owner, repository=repository.name)}}" class="btn btn-xs btn-info run">Run</a>
-                  {% endif %}
-                  <button id="state" class="btn {{repository.tested|btn}} btn-xs">
+              </h2>
+              <p><button id="state" class="btn {{repository.active|btn}} btn-xs">
                     <span class="glyphicon glyphicon-off"></span>
                     <span class="fa fa-refresh" style="display: none;"></span>
                   </button>
-                </div>
-              </h2>
-              {% if repository.updated %}
-              <div class="alert alert-success" role="alert">
-                Settings were updated
-              </div>
-              {% endif %}
-              <form method="POST" action="{{url_for('.repository', owner=repository.owner, repository=repository.name)}}" class="form form-horizontal">
-                <div class="form-group">
-                  <div class="col-sm-4">
-                    Scheme
-                  </div>
-                  <div class="col-sm-8">
-                    <div class="radio">
-                      <label>
-                        <input type="radio" name="dtd" value="tei" {{repository.dtd|tei}}> TEI
-                      </label>
-                    </div>
-                    <div class="radio">
-                      <label>
-                        <input type="radio" name="dtd" value="epidoc" {{repository.dtd|epidoc}}> Epidoc
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <div class="col-sm-8 col-sm-offset-4">
-                    <div class="checkbox">
-                      <label>
-                        <input type="checkbox" name="masterpr" value="only" {{repository.master_pr|checked}}> Master and PR testing only
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <div class="col-sm-8 col-sm-offset-4">
-                    <div class="checkbox">
-                      <label>
-                        <input type="checkbox" name="verbose" value="true" {{repository.verbose|checked}}> Verbose
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <div class="col-sm-offset-2 col-sm-10">
-                    <button type="submit" class="btn btn-default btn-xs">Save</button>
-                  </div>
-                </div>
-              </form>
+                  Toggle the repository for Hook &amp; Travis
+              </p>
+              <p>In order for HookTest to communicate with the current system, you need to set the Environment Variable
+                  <em>HOOK_SECRET</em> to :
+                  <pre class="travis_env">{{repository.travis_env}}</pre>
+                <a href="{{url_for(".api_update_token", owner=repository.owner, repository=repository.name)}}" id="refresh-sha">
+                    <span class="btn btn-link"><span class="fa fa-refresh" style="display: none;"></span></span>
+                    <small>Click here to refresh</small>
+                </a>
+              </p>
           </div>
           <div class="col-md-8">
           {% else %}
@@ -90,108 +57,78 @@
           </div>
       </div>
       <div class="row">
-          <ul class="col-md-12">
-              <h2>Tests</h2>
-              <nav>
-                  <ul class="pagination pagination-sm">
-                  {%- for page in pagination.iter_pages() %}
-                    {% if page %}
-                          {% if page != pagination.page %}
-                        <li><a href="{{url_for('.repository', owner=repository.owner, repository=repository.name, page=page)}}">{{ page }}</a></li>
-                      {% else %}
-                        <li class="active"><a href="#"><strong>{{ page }}</strong></a></li>
-                      {% endif %}
-                    {% else %}
-                      <li class="disabled"><span class=ellipsis>…</span></li>
-                    {% endif %}
-                  {%- endfor %}
-                  </ul>
-              </nav>
+          <div class="col-md-12">
               <table class="table table-striped">
                   <thead>
                       <tr>
                           <th>Date</th>
-                          <th>Reference</th>
+                          <th>Build</th>
+                          <th>Ref</th>
                           <th>User</th>
-                          <th>Status</th>
                           <th>Coverage</th>
-                          <th>Total Files</th>
-                          <th>Logs</th>
+                          <th>More</th>
                       </tr>
                   </thead>
                   <tbody>
-                      {% for test in running %}
-
-                          <tr class="warning">
-                              <td>{{test.run_at}}</td>
-                              <td>{{test.branch|nice_ref(test.sha)}}</td>
-                              <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
-                              <td colspan="3">
-                                <div class="progress">
-                                  <div class="progress-bar" role="progressbar" aria-valuenow="{{test.percent}}" aria-valuemin="0" aria-valuemax="100" style="width: {{test.percent}}%;">
-                                  {{test.percent}}%
-                                  </div>
-                                </div>
-                              </td>
-                              <td>
-                                {% if repository.isWritable(current_user) %}
-                                <a href="{{url_for('.api_repo_history', owner=repository.owner, repository=repository.name)}}?uuid={{test.uuid}}" class="btn btn-xs btn-danger cancel-test" style="margin:1px;"><span class="glyphicon glyphicon-remove"></span></a>
-                                {% endif %}
-                                <a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('.repository_test', owner=repository.owner, repository=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a>
-                              </td>
-                          </tr>
-                      {% endfor %}
-                      {% for test in tests %}
+                      {% for test in tests.items %}
 
                           <tr>
                               <td>{{test.run_at}}</td>
-                              <td>{{test.branch|nice_ref(test.sha)}}</td>
-                              <td><img class="user user-20" src="{{test.gravatar}}?s=20" alt="{{test.user}}" /></td>
-                              <td><div class="hookbadge {{test.status}}">{{test.status}}</div></td>
-                              <td>{% if test.coverage %}{{test.coverage|round(2)}}%{% endif %}</td>
-                              <td>{{test.total}}</td>
-                              <td><a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('.repository_test', owner=repository.owner, repository=repository.name, uuid=test.uuid)}}" alt="Status checking"><span class="glyphicon glyphicon-cog"></span></a></td>
+                              <td><a href="{{test.travis_uri}}">{{test.travis_build_id}}</a></td>
+                              <td>{{test|nice_link_to_source}}</td>
+                              <td><img class="user user-20" src="{{test.avatar}}?s=20" alt="{{test.user}}" /></td>
+                              <td>{{test.coverage}}</td>
+                              <td>
+                                  <a class="btn btn-xs btn-info" style="margin:1px;" href="{{url_for('.repository_test', owner=repository.owner, repository=repository.name, uuid=test.uuid)}}" title="Status checking"><span class="glyphicon glyphicon-cog"></span></a>
+                                  <a class="btn btn-xs btn-link" style="margin:1px;" href="{{test.comment_uri}}" title="Github Comment"><span class="fa fa-file-text-o"></span></a>
+
+                              </td>
                           </tr>
                       {% endfor %}
                   </tbody>
               </table>
+              {% if tests.pages > 1 %}
+              <nav aria-label="Page navigation">
+                  <ul class="pagination">
+                      {% if tests.has_prev %}
+                    <li>
+                      <a class="first" href="{{url_for('.repository', owner=repository.owner, repository=repository.name, page=1)}}" aria-label="First">
+                        <span aria-hidden="true" class=" glyphicon glyphicon-backward"></span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="prev" href="{{url_for('.repository', owner=repository.owner, repository=repository.name, page=tests.prev_num)}}" aria-label="Previous">
+                        <span aria-hidden="true" class=" glyphicon glyphicon-chevron-left"></span>
+                      </a>
+                    </li>
+                      {% endif %}
+                    <li class="disabled"><a>{{tests.page}}</a></li>
+                      {% if tests.has_next %}
+                    <li>
+                      <a class="next" href="{{url_for('.repository', owner=repository.owner, repository=repository.name, page=tests.next_num)}}" aria-label="Next">
+                        <span aria-hidden="true" class=" glyphicon glyphicon-chevron-right"></span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="last" href="{{url_for('.repository', owner=repository.owner, repository=repository.name, page=tests.pages)}}" aria-label="Last">
+                        <span aria-hidden="true" class=" glyphicon glyphicon-forward"></span>
+                      </a>
+                    </li>
+                      {% endif %}
+                  </ul>
+                </nav>
+              {% endif %}
           </div>
       </div>
   </section>
 {% endblock %}
+
 {% block script %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
 <script>
 $(document).ready(function() {
-  $(".run").on("click", function(event) {
-    event.preventDefault();
-    var that = $(this);
-    $.ajax(that.attr("href"))
-      .success(function(data) {
-        location.href = "/repo/{{repository.owner}}/{{repository.name}}/" + data.uuid;
-      }).error(function(data) {
-        alert(data.responseJSON.error);
-      });
-  });
 
-  $(".cancel-test").on("click", function(e) {
-    e.preventDefault();
-    var that = $(this),
-        uri = that.attr("href");
-
-    $.ajax({
-      url: uri,
-      type: 'DELETE',
-      success: function(data) {
-        location.reload();
-      },
-      error : function(data) {
-        alert("Error while canceling");
-        location.reload();
-      }
-    });
-  })
-
+  {% if repository.has_rights(current_user) %}
   $('#state').on('click', function(event) {
     event.preventDefault();
     var el = $(this),
@@ -222,6 +159,25 @@ $(document).ready(function() {
       }
     });
   });
+  $('#refresh-sha').on('click', function(event) {
+    event.preventDefault();
+    var el = $(this),
+        spinner = el.find(".fa-refresh"),
+        on = el.find(".glyphicon-off");
+    spinner.show().addClass("fa-spin");
+
+    $.ajax({
+      url: el.attr("href"),
+      type: 'PATCH',
+      success: function(data) {
+        location.reload()
+      },
+      error : function(data) {
+        alert("Error during switch of the repository")
+      }
+    });
+  });
+    {% endif %}
 });
 var margin = {top: 20, right: 20, bottom: 30, left: 40},
     width = parseInt(d3.select("#history").style("width")) - margin.left - margin.right - Math.floor(parseInt(d3.select("#history").style("width"))/10),

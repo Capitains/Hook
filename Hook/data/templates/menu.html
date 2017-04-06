@@ -1,6 +1,6 @@
 <ul class="list-group" style="margin-top:20px;">
-    {% if current_user.is_authenticated == True %}
-        {% for repo in current_user.testable %}
+    {% if current_user.is_authenticated %}
+        {% for repo in current_user.active_repositories %}
             <li class="list-group-item repo-menu-card" data-owner="{{repo.owner}}">
                 <a href="{{url_for('.repository', owner=repo.owner, repository=repo.name)}}">
                     <i class="fa fa-folder-open pull-left"></i>
