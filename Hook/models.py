@@ -402,9 +402,10 @@ def model_maker(db, prefix=""):
             """
             items = [
                 (self.diff_dict, last_master.diff_dict, "Global"),
-                (units, last_master.units_as_dict, "Units"),
-                (words_count, last_master.words_count_as_dict, "Words")
+                (units, last_master.units_as_dict, "Units")
             ]
+            if words_count is not None:
+                items.append((words_count, last_master.words_count_as_dict, "Words"))
             ret = {}
             for me, you, name in items:
                 current = defaultdict(list)
@@ -440,7 +441,10 @@ def model_maker(db, prefix=""):
             if mode == "md":
                 mode = "pipe"
             output = []
-            for name in ["Global", "Words", "Units"]:
+            keys = ["Global", "Units"]
+            if "Words" in diff_dict:
+                keys = ["Global", "Words", "Units"]
+            for name in keys:
                 table = diff_dict[name]
                 if len(table["New"] + table["Deleted"] + table["Changed"]) > 0:
                     output.append("## %s" % name)
@@ -470,6 +474,9 @@ def model_maker(db, prefix=""):
             dct = self.diff_dict
             if self.words_count is not None:
                 dct["words_count"] = self.words_count_as_dict
+
+            if self.comment_uri is not None:
+                dct["comment_uri"] = self.comment_uri
             return dct
 
         @staticmethod

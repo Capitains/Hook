@@ -109,6 +109,7 @@ def make_moke(db, models):
             self.greekLit = greekLit
             self.test1 = test
             self.test2 = test2
+            self.units = former_unit
 
         def add_repo_to_pi(self):
             self.ponteineptique.repositories.append(self.latinLit)

@@ -49,7 +49,10 @@ class BaseTest(TestCase):
         self.db = SQLAlchemy(app)
 
         # Mokes
-        self.hook = HookUI(database=self.db, github=GitHub(app=app), login=LoginManager(app=app), app=app)
+        self.hook = HookUI(
+            database=self.db, github=GitHub(app=app), login=LoginManager(app=app), app=app,
+            commenter_github_access_token="commenter_api"
+        )
         self.Models = self.hook.Models
         self.db.create_all()
         self.Mokes = make_moke(self.db, self.Models)
@@ -98,3 +101,19 @@ class BaseTest(TestCase):
             finally:
                 # logging out
                 self.client.get('/logout')
+
+    @contextmanager
+    def mocks(self, extra_mocks=None):
+        if extra_mocks is None:
+            extra_mocks = []
+
+        with requests_mock.Mocker() as m:
+            for verb, url, kwargs in extra_mocks:
+                m.register_uri(verb, re.compile(url), **kwargs)
+            self.__mocks__ = m
+            # at this point we are logged in
+            try:
+                yield
+            finally:
+                # logging out
+                pass

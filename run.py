@@ -31,11 +31,13 @@ app.config["SECRET_KEY"] = 'super secret key'
 db = SQLAlchemy(app)
 
 # Mokes
-hook = HookUI(database=db, github=flask_github.GitHub(app=app), login=LoginManager(app=app))
+hook = HookUI(
+    database=db, github=flask_github.GitHub(app=app), login=LoginManager(app=app),
+    commenter_github_access_token=os.environ.get("HOOKUI")
+)
 
 
 def mock_authorize(token, request, success, error):
-    print(token)
     with app.app_context():
         u = Models.User.query.filter(Models.User.github_access_token == "nbiousndegoijubdognlksdngndsgmngds")\
             .first()

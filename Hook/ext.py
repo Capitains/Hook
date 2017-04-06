@@ -29,7 +29,7 @@ class HookUI(object):
         ("/api/hook/v2.0/user/repositories", "r_api_user_repositories", ["GET", "POST"]),
         ("/api/hook/v2.0/user/repositories/<owner>/<repository>", "r_api_user_repository_switch", ["PUT"]),
         ("/api/hook/v2.0/user/repositories/<owner>/<repository>", "r_api_hooktest_endpoint", ["POST"]),
-        ('/api/hook/v2.0/user/repositories/<owner>/<repository>/history', "r_api_repo_history", ["GET", "DELETE"]),
+        ('/api/hook/v2.0/user/repositories/<owner>/<repository>/history', "r_api_repo_history", ["GET"]),
         ('/api/hook/v2.0/user/repositories/<owner>/<repository>/token', "r_api_update_token", ["PATCH"]),
 
         ('/api/hook/v2.0/badges/<owner>/<repository>/texts.svg', "r_repo_texts_count", ["GET"]),
@@ -59,7 +59,8 @@ class HookUI(object):
     def __init__(self,
          prefix="", database=None, github=None, login=None,
          remote=None, github_secret=None, hooktest_secret=None,
-         static_folder=None, template_folder=None, app=None, name=None
+         static_folder=None, template_folder=None, app=None, name=None,
+         commenter_github_access_token=None
     ):
         """ Initiate the class
 
@@ -74,6 +75,7 @@ class HookUI(object):
         :param template_folder: New template folder
         :param app: Application on which to register
         :param name: Name to use for the blueprint
+        :param commenter_github_access_token: Access Token of the User who posts comment
         """
         self.__g = None
 
@@ -88,8 +90,9 @@ class HookUI(object):
 
         self.remote = remote
         self.github_secret = github_secret
-        self.hooktest_secret = hooktest_secret
+        self.hooktest_secret = hooktest_secret or "super_secret!"
         self.prefix = prefix
+        self.commenter_github_access_token = commenter_github_access_token
 
         self.static_folder = static_folder
         if not self.static_folder:
@@ -256,7 +259,7 @@ class HookUI(object):
         :param owner: Name of the owner
         :param repository: Name of the repository
         """
-        return jsonify(self.handle_hooktest_log(request))
+        return jsonify(self.handle_hooktest_log(request=request, owner=owner, repository=repository))
 
     def r_api_user_repositories(self):
         """ Route fetching user repositories
@@ -479,7 +482,9 @@ class HookUI(object):
         """
 
         if not request.data:
-            raise BadRequest(description="Not post data")
+            raise BadRequest(description="No post data")
+        elif request.content_type != "application/json":
+            raise BadRequest(description="Data is not json encoded")
         elif self.check_hooktest_signature(request.data, request.headers.get("HookTest-Secure-X")) is False:
             raise Forbidden(description="Signature is not right")
 
@@ -495,6 +500,9 @@ class HookUI(object):
             "event_type": "pull_request" or "push",
             "commit_sha": "iujodfnipofddef",
             "source": PR identifier or branch,
+
+            "user"
+            "avatar"
 
         }
 
@@ -524,15 +532,15 @@ class HookUI(object):
             if "words_count" in data:
                 kwargs["words_count"] = data["words_count"]
         except KeyError as E:
-            raise BadRequest(description=str(E))
+            raise BadRequest(description="Missing parameter " + str(E))
 
         test, diff = repo.register_test(**kwargs)
-        if "event_type" == "push":
-            uri = "/repos/{owner}/{repository}/commits/{sha}/comments".format(
+        if data["event_type"] == "push":
+            uri = "repos/{owner}/{repository}/commits/{sha}/comments".format(
                 owner=owner, repository=repository, sha=test.sha
             )
         else:
-            uri = "/repos/{owner}/{repository}/issues/{sha}/comments".format(
+            uri = "repos/{owner}/{repository}/issues/{sha}/comments".format(
                 owner=owner, repository=repository, sha=test.source
             )
 
@@ -758,7 +766,7 @@ class HookUI(object):
         :param uri: Address where we want to post
         :return:
         """
-        repo = test.repository_dyn.first()
+        repo = test.repository_dyn
 
         data = {
           "body": """{}
@@ -770,13 +778,13 @@ class HookUI(object):
            ),
         }
 
-        params = {}
-        if not hasattr(self.g, "user"):
-            user = repo.authors[0]
-            access_token = user.github_access_token
-            params = {"access_token": access_token}
+        params = {"access_token": self.commenter_github_access_token}
 
-        self.api.post(uri, data=data, params=params)
+        output = self.api.post(uri, data=data, params=params)
+
+        test.comment_uri = output.json()["html_url"]
+        self.db.session.add(test)
+        self.db.session.commit()
 
     """
         USER CONTROLLER
@@ -901,3 +909,15 @@ class HookUI(object):
         if rv is None:
             raise NotFound(description="Unknown repository")
         return rv
+
+
+def get_user(self, owner, repo, event_type, event_id):
+    """
+
+    :param self:
+    :param owner:
+    :param repo:
+    :param event_type:
+    :param event_id:
+    :return:
+    """
