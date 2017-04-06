@@ -92,12 +92,12 @@ class TestModels(TestCase):
 
     def makeTest(self, repo):
         test = self.RepoTest(
-            branch="master",
+            source="master",
             repository=repo.uuid,
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544",
             travis_build_id="25",
-            travis_user="sonofmun",
-            travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun",
+            avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637,
             texts_passing=630,
             metadata_total=718,
@@ -199,11 +199,11 @@ class TestModels(TestCase):
         sleep(0.1)
 
         test2 = self.RepoTest(
-            branch="master",
+            source="master",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544",
             travis_build_id="27",
-            travis_user="sonofmun",
-            travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun",
+            avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637,
             texts_passing=630,
             metadata_total=718,
@@ -219,11 +219,11 @@ class TestModels(TestCase):
         sleep(0.1)
 
         test3 = self.RepoTest(
-            branch="different_branch",
+            source="different_branch",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544",
             travis_build_id="27",
-            travis_user="sonofmun",
-            travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun",
+            avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637,
             texts_passing=635,
             metadata_total=720,
@@ -242,11 +242,11 @@ class TestModels(TestCase):
         sleep(0.1)
 
         test4 = self.RepoTest(
-            branch="master",
+            source="master",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544",
             travis_build_id="52",
-            travis_user="sonofmun",
-            travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun",
+            avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637,
             texts_passing=635,
             metadata_total=720,
@@ -266,11 +266,11 @@ class TestModels(TestCase):
         pi, ll = self.createPonteineptique(), self.createLatinLit()
         self.commit()
         test = self.RepoTest(
-            branch="master",
+            source="master",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544",
             travis_build_id="27",
-            travis_user="sonofmun",
-            travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun",
+            avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637,
             texts_passing=635,
             metadata_total=720,
@@ -302,11 +302,11 @@ class TestModels(TestCase):
         pi, ll = self.createPonteineptique(), self.createLatinLit()
         self.commit()
         test = self.RepoTest(
-            branch="master",
+            source="master",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544",
             travis_build_id="27",
-            travis_user="sonofmun",
-            travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun",
+            avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637,
             texts_passing=635,
             metadata_total=720,
@@ -339,9 +339,9 @@ class TestModels(TestCase):
         self.commit()
         # Create first test
         test = self.RepoTest(
-            branch="master",
+            source="master",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544", travis_build_id="27",
-            travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun", avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637, texts_passing=635, metadata_total=720, metadata_passing=719, coverage=99.79,
             nodes_count=113179, repository=ll.uuid
         )
@@ -361,9 +361,9 @@ class TestModels(TestCase):
         self.former_unit["data/tlg0015/tlg002/__cts__.xml"] = False
         del self.former_unit["data/tlg0015/__cts__.xml"]
         second_repo = self.RepoTest(
-            branch="n1",
+            source="n1",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544", travis_build_id="27",
-            travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun", avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637, texts_passing=636, metadata_total=725, metadata_passing=719, coverage=99.78,
             nodes_count=113135, repository=ll.uuid
         )
@@ -412,9 +412,9 @@ class TestModels(TestCase):
 
         # Create third test
         third_repo = self.RepoTest(
-            branch="n2",
+            source="n2",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544", travis_build_id="287",
-            travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun", avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637, texts_passing=636, metadata_total=725, metadata_passing=719, coverage=99.79,
             nodes_count=113135, repository=ll.uuid
         )
@@ -466,9 +466,9 @@ class TestModels(TestCase):
         self.commit()
         # Create first test
         test = self.RepoTest(
-            branch="master",
+            source="master",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544", travis_build_id="27",
-            travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun", avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637, texts_passing=635, metadata_total=720, metadata_passing=719, coverage=99.79,
             nodes_count=113179, repository=ll.uuid
         )
@@ -488,9 +488,9 @@ class TestModels(TestCase):
         self.former_unit["data/tlg0015/tlg002/__cts__.xml"] = False
         del self.former_unit["data/tlg0015/__cts__.xml"]
         second_repo = self.RepoTest(
-            branch="n1",
+            source="n1",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544", travis_build_id="27",
-            travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun", avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637, texts_passing=636, metadata_total=725, metadata_passing=719, coverage=99.78,
             nodes_count=113135, repository=ll.uuid
         )
@@ -535,11 +535,11 @@ class TestModels(TestCase):
         self.commit()
         pi.repositories.append(ll)
         test, diff = ll.register_test(
-            branch="master",
+            source="master",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544",
             travis_build_id="27",
-            travis_user="sonofmun",
-            travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun",
+            avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637,
             texts_passing=635,
             metadata_total=720,
@@ -562,9 +562,10 @@ class TestModels(TestCase):
         test2_units["data/tlg0015/tlg002/__cts__.xml"] = False
         del test2_units["data/tlg0015/__cts__.xml"]
         test2, diff = ll.register_test(
-            branch="n1",
+            source="n1",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544", travis_build_id="27",
-            travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun",
+            avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637, texts_passing=636, metadata_total=725, metadata_passing=719, coverage=99.78,
             nodes_count=113135, units=test2_units, words_count={
                 "eng": 55556,
@@ -622,9 +623,10 @@ class TestModels(TestCase):
         """
         test3_units = test2_units
         test3, diff = ll.register_test(
-            branch="master",
+            source="master",
             travis_uri="https://travis-ci.org/sonofmun/First1KGreek/builds/216262544", travis_build_id="28",
-            travis_user="sonofmun", travis_user_gravatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
+            user="sonofmun",
+            avatar="sonofmun@yahoooooooooooooooooooooooooooooooooooooo.com",
             texts_total=637, texts_passing=636, metadata_total=725, metadata_passing=719, coverage=99.78,
             nodes_count=113135, units=test3_units, words_count={
                 "eng": 55556,

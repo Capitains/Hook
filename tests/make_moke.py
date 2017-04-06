@@ -51,11 +51,11 @@ def make_moke(db, models):
     db.session.commit()
 
     test, diff = latinLit.register_test(
-        branch="master",
+        source="master",
         travis_uri="https://travis-ci.org/PerseusDl/canonical-latinLit/builds/216262544",
         travis_build_id="27",
-        travis_user="sonofmun",
-        travis_user_gravatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
+        user="sonofmun",
+        avatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
         texts_total=637,
         texts_passing=630,
         metadata_total=720,
@@ -78,11 +78,11 @@ def make_moke(db, models):
     test2_units["data/tlg0015/tlg002/__cts__.xml"] = False
     del test2_units["data/tlg0015/__cts__.xml"]
     test2, *_ = latinLit.register_test(
-        branch="issue-45",
+        source="issue-45",
         travis_uri="https://travis-ci.org/PerseusDl/canonical-latinLit/builds/216262555",
         travis_build_id="28",
-        travis_user="sonofmun",
-        travis_user_gravatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
+        user="sonofmun",
+        avatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
         texts_total=637,
         texts_passing=636,
         metadata_total=720,
@@ -120,11 +120,11 @@ def make_moke(db, models):
                 models.Repository.owner == "PerseusDl",
                 models.Repository.name == "canonical-latinLit"
             ).first().register_test(
-                branch="master",
+                source="master",
                 travis_uri="https://travis-ci.org/PerseusDl/canonical-latinLit/builds/216262588",
                 travis_build_id="29",
-                travis_user="sonofmun",
-                travis_user_gravatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
+                user="sonofmun",
+                avatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
                 texts_total=637,
                 texts_passing=636,
                 metadata_total=720,
@@ -159,11 +159,11 @@ def make_moke(db, models):
                 date = datetime_starts_at + timedelta(hours=i)
 
                 test, _ = target.register_test(
-                    branch="issue-"+str(i),
+                    source="issue-"+str(i),
                     travis_uri="https://travis-ci.org/PerseusDl/canonical-latinLit/builds/216262588",
                     travis_build_id=29+i,
-                    travis_user="sonofmun",
-                    travis_user_gravatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
+                    user="sonofmun",
+                    avatar="https://avatars0.githubusercontent.com/u/3787067?v=3&s=126",
                     texts_total=637,
                     texts_passing=636,
                     metadata_total=720,

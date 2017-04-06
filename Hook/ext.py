@@ -1,6 +1,6 @@
-from flask import Blueprint, url_for, request, render_template, g, Markup, session, redirect, \
-    jsonify, send_from_directory, abort
-from werkzeug.exceptions import NotFound
+from flask import Blueprint, url_for, request, render_template, g, session, redirect, \
+    jsonify, send_from_directory, Markup
+from werkzeug.exceptions import NotFound, Forbidden, BadRequest
 from flask_github import GitHub
 from flask_login import LoginManager, current_user, login_required, login_user
 from flask_sqlalchemy import SQLAlchemy
@@ -10,11 +10,8 @@ import re
 import hmac
 import hashlib
 import json
-import requests
-from uuid import uuid4
 
 from Hook.models import model_maker
-from Hook.common import slugify
 
 
 class HookUI(object):
@@ -25,14 +22,13 @@ class HookUI(object):
         ('/logout', "r_logout", ["GET"]),
 
         ('/api/github/callback', "r_github_oauth", ["GET"]),
-        ('/api/github/payload', "r_github_payload", ["GET", "POST"]),
-        ("/api/hooktest", "r_api_hooktest_endpoint", ["POST"]),
 
         ('/repo/<owner>/<repository>', "r_repository", ["GET"]),
         ('/repo/<owner>/<repository>/<uuid>', "r_repository_test", ["GET"]),
 
         ("/api/hook/v2.0/user/repositories", "r_api_user_repositories", ["GET", "POST"]),
         ("/api/hook/v2.0/user/repositories/<owner>/<repository>", "r_api_user_repository_switch", ["PUT"]),
+        ("/api/hook/v2.0/user/repositories/<owner>/<repository>", "r_api_hooktest_endpoint", ["POST"]),
         ('/api/hook/v2.0/user/repositories/<owner>/<repository>/history', "r_api_repo_history", ["GET", "DELETE"]),
         ('/api/hook/v2.0/user/repositories/<owner>/<repository>/token', "r_api_update_token", ["PATCH"]),
 
@@ -53,13 +49,8 @@ class HookUI(object):
     ]
 
     FILTERS = [
-        "f_nice_ref",
-        "f_nice_branch",
-        'f_slugify',
-        'f_checked',
-        'f_btn',
-        'f_success_class',
-        "f_ctsized"
+        "f_nice_link_to_source",
+        'f_btn'
     ]
 
     VERBOSE = re.compile("(>>>>>>[^>]+)")
@@ -229,14 +220,6 @@ class HookUI(object):
         authorize = self.api.authorized_handler(func)
         return authorize(*args, **kwargs)
 
-    def r_github_payload(self):
-        """ GitHub payload route
-        """
-        return self.handle_payload(
-            request,
-            request.headers
-        )
-
     def r_index(self):
         """ Index route
         """
@@ -267,10 +250,13 @@ class HookUI(object):
         else:
             return kwargs, status, header
 
-    def r_api_hooktest_endpoint(self):
+    def r_api_hooktest_endpoint(self, owner, repository):
         """ Route HookTest endpoint
+
+        :param owner: Name of the owner
+        :param repository: Name of the repository
         """
-        return "", self.handle_hooktest_log(request), {}
+        return jsonify(self.handle_hooktest_log(request))
 
     def r_api_user_repositories(self):
         """ Route fetching user repositories
@@ -381,49 +367,13 @@ class HookUI(object):
         return send_from_directory(resource_filename("Hook", "data/static/favicon"), icon, mimetype='image/vnd.microsoft.icon')
 
     @staticmethod
-    def f_nice_ref(branch, commit):
-        """ Transform a git formatted reference into something more human readable or returns part of commit sha
-
-        :param branch: Github Reference
-        :param commit: Commit SHA
-        :return: Human readable reference
-        """
-        if HookUI.PR_FINDER.match(branch):
-            return "PR #{0}".format(branch.strip("pull/").strip("/head"))
-        return commit[0:8]
-
-    @staticmethod
-    def f_nice_branch(branch):
+    def f_nice_link_to_source(test):
         """ Transform a git formatted reference into something more human readable
 
-        :param branch: Github Reference
+        :param test: Current Test
         :return: Human readable branch name
         """
-        if HookUI.PR_FINDER.match(branch):
-            return "PR #{0}".format(branch.strip("pull/").strip("/head"))
-        else:
-            return branch.split("/")[-1]
-
-    @staticmethod
-    def f_slugify(string):
-        """ Slugify filter
-
-        :return: Slugified string
-        """
-        if not string:
-            return ""
-        return slugify(string)
-
-    @staticmethod
-    def f_checked(boolean):
-        """ Check a checkbox if boolean is true
-
-        :param boolean: Boolean
-        :return: "checked" if boolean is True
-        """
-        if boolean:
-            return " checked "
-        return ""
+        return Markup('<a href="/path/to">Pull Request or Commit</a>')
 
     @staticmethod
     def f_btn(boolean):
@@ -435,30 +385,6 @@ class HookUI(object):
         if boolean:
             return "btn-success"
         return "btn-danger"
-
-    @staticmethod
-    def f_success_class(status):
-        """ Return success or failed depending on boolean
-
-        :param status: Status
-        :return: Success or fail
-        """
-        string = ""
-        if status is True:
-            string = "success"
-        elif status is False:
-            string = "failed"
-        return string
-
-    @staticmethod
-    def f_ctsized(cts_tuple):
-        """ Join a tuple of text
-
-        :param cts_tuple: Tuple representing the number of texts cts compliant and the total number of text
-        :type cts_tuple: (int, int)
-        :return: Stringified tuple
-        """
-        return "{0}/{1}".format(*cts_tuple)
 
     """
         CONTROLLER FUNCTIONS
@@ -526,203 +452,75 @@ class HookUI(object):
                 "test": test
             }, 200, {}
 
-    def repo_report_unit(self, owner, repository, uuid, unit):
-        """ Generate data for repository report for a single unit
-
-        :param owner: Name of the owner of the repository
-        :param repository: Name of the repository
-        :param uuid: Unique Identifier of the test
-        :param unit: Identifier of the Unit
-        :return: Report for a specific unit
-        """
-
-        repository = self.m_Repository.objects.filter_or_404(owner__iexact=owner, name__iexact=repository)
-        if unit == "all":
-            test = self.m_RepoTest.objects.filter_or_404(repository=repository, uuid=uuid)
-            report = self.m_RepoTest.report(owner, repository, repo_test=test)
-        else:
-            test = self.m_RepoTest.objects(
-                repository=repository, uuid=uuid
-            ).first().units.filter(
-                path=unit
-            ).first()
-            if test is None:
-                return "", 404
-            report = self.m_DocTest.report(test)
-
-        return report
-
-    def generate_informations(self, repository):
-        """ Generate informations for a user generated build
-
-        :param repository: Repository for which a test should be run
-        :type repository: Repository
-        :return: Reference, Creator identifier, Commit Sha, URL on Github for the repository, GitHub UUID
-        """
-        status = self.api.get(
-            "repos/{owner}/{name}/commits".format(owner=repository.owner, name=repository.name),
-            params={"sha": "master", "per_page": "1"}
-        )
-        if len(status) == 0:
-            return "error", "No commits available", 404
-
-        sha = status[0]["sha"]
-        ref = "refs/heads/master"
-        if "author" in status[0]:
-            creator = status[0]["author"]["login"]
-        else:
-            creator = status[0]["commit"]["author"]["name"]
-        guid = str(uuid4())
-        url = status[0]["html_url"]
-
-        return ref, creator, sha, url, guid
-
-    def generate(self, username, reponame, callback_url=None, ref=None, creator=None, sha=None, url=None, uuid=None, check_branch=False, check_user=True):
-        """ Generate a test on the machine
-
-        :param username: Name of the user
-        :type username: str
-        :param reponame: Name of the repository
-        :type reponame: str
-        :param callback_url: URL to send log to
-        :param ref: branch to be tested
-        :type ref: str
-        :param creator: Person responsible for starting the test
-        :param sha: SHA of the commit
-        :param url: URL of the resource
-        :param uuid: UUID to use
-        :param check_branch: If set to True, should check against repo.master_pr
-        """
-        repo = self.m_Repository.objects.filter_or_404(owner__iexact=username, name__iexact=reponame)
-
-        if check_user:
-            if hasattr(g, "user") and not repo.isWritable(g.user):
-                resp = jsonify(status="error", message="You are not an owner of the repository", uuid=None)
-                return resp
-
-        if check_branch == True and repo.master_pr == True:
-            if not HookUI.PR_FINDER.match(ref) and not ref.endswith("master"):
-                response = jsonify(status="ignore", message="Test ignored because this is not a pull request nor a push to master")
-                return response
-
-        if creator is None:  # sha and url should be None
-            informations = self.generate_informations(repo)
-            if len(informations) == 3:
-                return informations
-            else:
-                ref, creator, sha, url, uuid = informations
-
-        running_test = self.m_RepoTest.objects(branch=ref, user=creator, sha=sha, repository=repo, link=url, status__in=["queued", "downloading", "downloading", "pending"])
-        if len(running_test) > 0:
-            return json.dumps({"message": "Test already running", "status": "error"}), 200
-
-        avatar = "https://avatars.githubusercontent.com/{0}".format(creator)
-
-        test = self.m_RepoTest.Get_or_Create(
-            uuid=uuid,
-            repository=repo,
-            branch=ref,
-            user=creator,
-            gravatar=avatar,
-            sha=sha,
-            link=url
-        )
-
-        status, message = self.dispatch(test, callback_url)
-        self.comment(test)
-
-        return jsonify(status=status, message=message, uuid=uuid)
-
-    def dispatch(self, test, callback_url):
-        """ Dispatch a test to the redis queue
-
-        :param test: The test to be sent
-        :param callback_url: URL to send log to
-        """
-
-        params = {
-            "repository": test.repository.full_name,
-            "ping": callback_url,
-            "verbose": test.verbose,
-            "console": False,
-            "uuid" : test.uuid,
-            "scheme": test.scheme,
-            "branch": test.branch
-        }
-        params = bytes(json.dumps(params), encoding="utf-8")
-        response = requests.put(self.remote, data=params, headers={'content-type': 'application/json', "HookTest-Secure-X" : self.make_hooktest_signature(params)})
-        infos = response.json()
-
-        if infos["status"] == "queued":
-            test.update(hash=infos["job_id"], status="queued")
-            return "success", "Test launched"
-        else:
-            return infos["status"], "Error while dispatching test"
-
-    def handle_hooktest_log(self, request):
+    def handle_hooktest_log(self, owner, repository, request):
         """ Handle data received from Redis server commands
 
+        :param owner: Name of the owner
+        :param repository: Name of the repository
         :param request: request object
         :return: Status Code
         """
 
-        if not request.data or not request.headers.get("HookTest-UUID"):
-            return 404
+        if not request.data:
+            raise BadRequest(description="Not post data")
         elif self.check_hooktest_signature(request.data, request.headers.get("HookTest-Secure-X")) is False:
-            return 401
+            raise Forbidden(description="Signature is not right")
 
-        # Now we get the repo
-        uuid = request.headers.get("HookTest-UUID")
-        test = self.m_RepoTest.objects(uuid=uuid).exclude("units.logs").exclude("units.text_logs").first()
-        if not test:
-            return 404
+        repo = self.Models.Repository.get_or_raise(owner, repository)
         data = json.loads(request.data.decode('utf-8'))
 
-        # If the test just started
-        if "status" in data:
-            test.update(status=data["status"])
-        if "message" in data:
-            test.update(error_message=data["message"])
+        # Format of expected data :
+        """
 
-        if "files" in data and "inventories" in data and "texts" in data:
-            test.update(
-                texts=data["texts"],
-                cts_metadata=data["inventories"]
+        {
+            "build_uri": env["TRAVIS_BUILD_ID"],
+            "build_id": env["TRAVIS_BUILD_ID"],
+            "event_type": "pull_request" or "push",
+            "commit_sha": "iujodfnipofddef",
+            "source": PR identifier or branch,
+
+        }
+
+        """
+        try:
+            kwargs = dict(
+                # Information about the commit
+                source=data["source"],
+                travis_uri=data["build_uri"],
+                travis_build_id=data["build_id"],
+                sha=data["commit_sha"],
+                event_type=data["event_type"],
+
+                # Information about the User
+                user=data["user"],
+                avatar=data["avatar"],
+
+                # Information about the test
+                texts_total=data["texts_total"],
+                texts_passing=data["texts_passing"],
+                metadata_total=data["metadata_total"],
+                metadata_passing=data["metadata_passing"],
+                coverage=data["coverage"],
+                nodes_count=data["nodes_count"],
+                units=data["units"],
             )
+            if "words_count" in data:
+                kwargs["words_count"] = data["words_count"]
+        except KeyError as E:
+            raise BadRequest(description=str(E))
+
+        test, diff = repo.register_test(**kwargs)
+        if "event_type":
+            uri = ""
         else:
-            # If we have units, we have single logs to save
-            update = {}
-            if "units" in data:
-                _units = []
-                for unit in data["units"]:
-                    _units.append(self.m_DocTest(
-                        at=unit["at"],
-                        path=unit["name"],
-                        status=unit["status"],
-                        coverage=unit["coverage"]
-                    ))
+            uri = ""
 
-                    for text in unit["logs"]:
-                        _units[-1].text_logs.append(self.m_DocLogs(text=text))
-
-                    for test_name, test_status in unit["units"].items():
-                        _units[-1].logs.append(self.m_DocUnitStatus(
-                            title=test_name,
-                            status=test_status
-                        ))
-                update["push_all__units"] = _units
-
-            if "coverage" in data:
-                update["coverage"] = data["coverage"]
-                update["status"] = data["status"]
-
-            if len(update) > 0:
-                test.update(**update)
-
-        if "status" in data and data["status"] in ["success", "error", "failed"]:
-            test.reload()
-            self.comment(test)
-        return 200
+        # Commenting
+        self.comment(test, diff, uri=uri)
+        return {
+            "status": "success",
+            "link": self.url_for(".repository_test", owner=owner, repository=repository, uuid=test.uuid)
+        }
 
     def make_hooktest_signature(self, body):
         """ Check the signature sent by a request with the body
@@ -762,63 +560,6 @@ class HookUI(object):
             return True
         else:
             return False
-
-    def handle_payload(self, request, headers):
-        """ Handle a payload call from Github [Gonna need to change]
-
-        :param request: Request sent by github
-        :param headers: Header of the GitHub Request
-        :param callback_url: URL to use as a callback for HOOK
-        :return: Response
-        """
-        status, message, code = "error", "Webhook query is not handled", 200
-        creator, sha, ref, url, do = None, None, None, None, None
-        pull_request = False
-
-        signature = headers.get("X-Hub-Signature")
-        if not self.check_github_signature(request.data, signature):
-            response = jsonify(
-                status="error",
-                message="Signature check did not pass"
-            )
-            response.status_code = 300
-            return response
-
-        payload = request.get_json(force=True)
-        event = headers.get("X-GitHub-Event")
-        username, repository = tuple(payload["repository"]["full_name"].split("/"))
-        if event in ["push", "pull_request"]:
-            if event == "push":
-                creator = payload["head_commit"]["committer"]["username"]
-                sha = payload["head_commit"]["id"]
-                url = payload["compare"]
-                ref = payload["ref"]
-                pull_request = False
-                do = True
-            elif event == "pull_request" and payload["action"] in ["reopened", "opened", "synchronize"]:
-                creator = payload["pull_request"]["user"]["login"]
-                url = payload["pull_request"]["html_url"]
-                sha = payload["pull_request"]["head"]["sha"]
-                ref = "pull/{0}/head".format(payload["number"])
-                do = True
-                pull_request = True
-            if do:
-                response = self.generate(
-                    username,
-                    repository,
-                    callback_url=self.url_for(".api_hooktest_endpoint", _external=True),
-                    creator=creator,
-                    sha=sha,
-                    url=url,
-                    ref=ref,
-                    uuid=str(uuid4()),
-                    check_branch=pull_request
-                )
-                return response
-
-        response = jsonify(status=status, message=message)
-        response.status_code = code
-        return response
 
     def words_count_badge(self, username, reponame, language=None, uuid=None):
         """ Return the necessary information to build a text count badge
@@ -914,7 +655,7 @@ class HookUI(object):
         :type owner: str
         :param name: Repository Name
         :type name: str
-        :param branch: Branch to filter on
+        :param branch: Branch or Source (Pull Request) to filter on
         :type uuid: str
         :param uuid: Travis Build Number
         :type uuid: str
@@ -931,7 +672,7 @@ class HookUI(object):
 
             if branch:
                 repo = repo.filter(
-                    self.Models.RepoTest.branch == branch
+                    self.Models.RepoTest.source == branch
                 )
             if uuid:
                 repo = repo.filter(
@@ -988,32 +729,24 @@ class HookUI(object):
             )
         return jsonify(**history)
 
-    def comment(self, test):
+    def comment(self, test, diff, uri):
         """ Takes care of sending information to github API through the comment / status API
 
         :param test: The test currently running or finished
+        :param diff: The diff
+        :param uri: Address where we want to post
         :return:
         """
-        repo = test.repository
-        uri = "repos/{owner}/{repo}/statuses/{sha}".format(owner=repo.owner, repo=repo.name, sha=test.sha)
-        if test.status == "error":
-            state = "error"
-            sentence = "Test cancelled or ran into an error"
-        elif test.status == "success":
-            state = "success"
-            sentence = "Full repository is cts compliant"
-        elif test.status == "failed":
-            state = "failure"
-            sentence = "{0:.2f}% of unit tests passed".format(test.coverage)
-        else:
-            state = "pending"
-            sentence = "Currently testinself.g..."
+        repo = test.repository_dyn.first()
 
         data = {
-          "state": state,
-          "target_url": self.url_for(".repository_test", owner=repo.owner, repository=repo.name, uuid=test.uuid, _external=True),
-          "description": sentence,
-          "context": "continuous-integration/capitains-hook"
+          "body": """{}
+
+*[Hook UI build recap]({})*
+""".format(
+              test.table(diff, mode="md"),
+              self.url_for(".repository_test", owner=repo.owner, repository=repo.name, uuid=test.uuid, _external=True)
+           ),
         }
 
         params = {}
@@ -1023,17 +756,6 @@ class HookUI(object):
             params = {"access_token": access_token}
 
         self.api.post(uri, data=data, params=params)
-
-    def login(self, url_redirect):
-        """ Login the user using github API
-
-        :param url_redirect: Url to redirect to
-        :return: redirect(url_redirect)
-        """
-        if self.session.get('user_id', None) is None:
-            return self.api.authorize(scope=",".join(["user:email", "repo:status", "admin:repo_hook", "read:org"]))
-        return redirect(url_redirect)
-
 
     """
         USER CONTROLLER
@@ -1072,8 +794,8 @@ class HookUI(object):
     def fetch_repositories(self, method):
         """ Fetch repositories of a user
 
-        :param method:
-        :return:
+        :param method: Method that was used : POST->refresh, GET->list
+        :return: List of repository in json
         """
         response = []
         if method == "POST":
@@ -1111,6 +833,16 @@ class HookUI(object):
         del g.user
         return redirect(url_redirect)
 
+    def login(self, url_redirect):
+        """ Login the user using github API
+
+        :param url_redirect: Url to redirect to
+        :return: redirect(url_redirect)
+        """
+        if self.session.get('user_id', None) is None:
+            return self.api.authorize(scope=",".join(["user:email", "repo:status", "admin:repo_hook", "read:org"]))
+        return redirect(url_redirect)
+
     @property
     def session(self):
         """ Flask Session
@@ -1139,12 +871,6 @@ class HookUI(object):
         with self.app.app_context():
             return url_for("", _external=True)
 
-    @property
-    def callback_url_hooktest_endpoint(self):
-        """ Callback URL use for retrieving data from the HookTest service
-        """
-        return self.url_for(".api_hooktest_endpoint", _external=True)
-
     def url_for(self, route, **kwargs):
         with self.app.app_context():
             return url_for(route, **kwargs)
@@ -1154,28 +880,3 @@ class HookUI(object):
         if rv is None:
             raise NotFound(description="Unknown repository")
         return rv
-
-    @staticmethod
-    def slice(elements, start, max=None):
-        """ Return a sublist of elements, starting from index {start} with a length of {max}
-
-        :param elements: List of elements to slice
-        :type elements: list
-        :param start: Starting element (0-based Index)
-        :type start: int
-        :param max: Maximum number of elements to return
-        :type max: int
-
-        :return: (Sublist, Starting index of the sublist, end_index)
-        :rtype: (list, int, int)
-        """
-        length = len(elements)
-        real_index = start + 1
-        if length < real_index:
-            return [], length, 0
-        else:
-            if max is not None and max + start < length:
-                return elements[start:max+start], start, max+start
-            else:
-                return elements[start:], start, length - 1
-

@@ -140,7 +140,7 @@ def model_maker(db, prefix=""):
         @property
         def last_master_test(self):
             return self.tests.\
-                filter(RepoTest.branch == self.main_branch).\
+                filter(RepoTest.source == self.main_branch).\
                 order_by(RepoTest.run_at.desc()).\
                 first()
 
@@ -224,22 +224,22 @@ def model_maker(db, prefix=""):
                 raise RightsException("Not enough rights")
 
         def register_test(
-                self, branch, travis_uri, travis_build_id, travis_user, travis_user_gravatar, texts_total,
+                self, source, travis_uri, travis_build_id, user, avatar, texts_total,
                 texts_passing, metadata_total, metadata_passing, coverage, nodes_count,
-                units, words_count=None, sha=None, comment_uri=None, _get_diff=True
+                units, words_count=None, sha=None, comment_uri=None, _get_diff=True, event_type="push"
         ):
             """ Save a test and produce a diff if this is master
 
-            :param branch: branch
-            :type branch: Str
+            :param source: Source should be the Pull Request Number or the branch
+            :type source: Str
             :param travis_uri: travis_uri
             :type travis_uri: Str
             :param travis_build_id: travis_build_id
             :type travis_build_id: Str
-            :param travis_user: travis_user
-            :type travis_user: Str
-            :param travis_user_gravatar: travis_user_gravatar
-            :type travis_user_gravatar: Str
+            :param user: Login of the agent
+            :type user: str
+            :param avatar: Avatar of the user
+            :type avatar: Str
             :param texts_total: texts_total
             :type texts_total: Int
             :param texts_passing: texts_passing
@@ -256,15 +256,21 @@ def model_maker(db, prefix=""):
             :type units: dict
             :param words_count: Dictionary LanguageCode -> Number of words
             :type words_count: dict
+            :param comment_uri: URL Address of the comment
+            :type comment_uri: str
+            :param sha: SHA of the commit
+            :type sha: str
+            :param event_type: Type of the event
+            :type event_type: str
             :return:
             """
             last_master = self.last_master_test
             repo = RepoTest(
-                repository=self.uuid, branch=branch, travis_uri=travis_uri,
-                travis_build_id=travis_build_id, travis_user=travis_user, travis_user_gravatar=travis_user_gravatar,
+                repository=self.uuid, source=source, travis_uri=travis_uri,
+                travis_build_id=travis_build_id, user=user, avatar=avatar,
                 texts_total=texts_total, texts_passing=texts_passing, metadata_total=metadata_total,
                 metadata_passing=metadata_passing, coverage=coverage, nodes_count=nodes_count,
-                sha=sha, comment_uri=comment_uri
+                sha=sha, comment_uri=comment_uri, event_type=event_type
             )
             diff = None
             if last_master is not None and _get_diff is True:
@@ -276,7 +282,7 @@ def model_maker(db, prefix=""):
             if words_count is not None:
                 repo.save_words_count(words_count)
 
-            if self.main_branch == branch:
+            if self.main_branch == source:
                 repo.save_units(units, _commit=True, _last_master=last_master)
 
             return repo, diff
@@ -287,17 +293,19 @@ def model_maker(db, prefix=""):
         repository = db.Column(db.Integer, db.ForeignKey('repository.uuid'), nullable=False)
 
         run_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-        branch = db.Column(db.String(250), nullable=None)
 
+        """ Source should be the Pull Request Number or the branch
+        """
+        source = db.Column(db.String(250), nullable=None)
         sha = db.Column(db.String(64), nullable=True)
 
         travis_uri = db.Column(db.String(2000), nullable=False)
         travis_build_id = db.Column(db.String(10), nullable=False)
-        travis_user = db.Column(db.String(200), nullable=False)
-        travis_user_gravatar = db.Column(db.String(2000), nullable=False)
+        user = db.Column(db.String(200), nullable=False)
+        avatar = db.Column(db.String(2000), nullable=False)
 
         comment_uri = db.Column(db.String(2000), nullable=True)
-        api_comment_uri = db.Column(db.String(2000), nullable=True)
+        event_type = db.Column(db.String(12), nullable=False, default="push")
 
         texts_total = db.Column(db.Integer, nullable=False, default=0)
         texts_passing = db.Column(db.Integer, nullable=False, default=0)
@@ -305,7 +313,6 @@ def model_maker(db, prefix=""):
         metadata_passing = db.Column(db.Integer, nullable=False, default=0)
         coverage = db.Column(db.Float, nullable=False, default=0.0)
         nodes_count = db.Column(db.Integer, nullable=False, default=0)
-
 
         units = db.relationship(
             "UnitTest",

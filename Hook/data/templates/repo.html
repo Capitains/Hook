@@ -75,7 +75,7 @@
                           <tr>
                               <td>{{test.run_at}}</td>
                               <td><a href="{{test.travis_uri}}">{{test.travis_build_id}}</a></td>
-                              <td>{{test.branch|nice_ref(test.sha)}}</td>
+                              <td>{{test|nice_link_to_source}}</td>
                               <td><img class="user user-20" src="{{test.travis_user_gravatar}}?s=20" alt="{{test.user}}" /></td>
                               <td>{{test.coverage}}</td>
                               <td>
