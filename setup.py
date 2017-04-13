@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='Hook',
-    version="0.0.1",
+    version="1.0.0",
     description='Hook Flask App for Github/CTS repositories',
     url='http://github.com/Capitains/Hook',
     author='Thibault Clerice',
@@ -13,7 +13,6 @@ setup(
         "Flask>=0.12",
         "flask-login>=0.4.0",
         "GitHub-Flask==2.1.1",
-        "unicode-slugify==0.1.3",
         "Flask-SQLAlchemy==2.2",
         "tabulate==0.7.7"
     ],
