@@ -539,6 +539,13 @@ class HookUI(object):
         }
 
     def get_user_information_from_github(self, data, owner, repository):
+        """ Retrieve information about the current user
+
+        :param data: Current data built for RepoTest
+        :param owner:  Name of the owner
+        :param repository: Name of the repository
+        :return: Dictionary with user(name) key and avatar key
+        """
         slug = owner+"/"+repository
         if data["event_type"] == 'pull_request':
             status = self.api.get(
@@ -566,6 +573,7 @@ class HookUI(object):
         """ Check the signature sent by a request with the body
 
         :param body: Raw body of the request
+        :param secret: Secret specific to the repository
         :return: Signature for HookTest
         """
         return '{0}'.format(
@@ -580,6 +588,7 @@ class HookUI(object):
         """ Check the signature sent by a request with the body
 
         :param body: Raw body of the request
+        :param repo: Repository for which we check the signature
         :param hook_signature: Signature sent by github
         :return: Equality indicator
         """
@@ -606,6 +615,8 @@ class HookUI(object):
 
         :param username: Name of the repository owner
         :param reponame: Name of the repository
+        :param language: Language we want wordcount from
+        :param uuid: Id of the test we want the name from
         :return: (Template, Kwargs, Status Code, Headers)
         :rtype: (str, dict, int, dict)
         """
