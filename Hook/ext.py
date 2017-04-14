@@ -10,6 +10,7 @@ import re
 import hmac
 import hashlib
 import json
+import sys
 
 from Hook.models import model_maker
 
@@ -805,7 +806,8 @@ class HookUI(object):
 
         if user is None:
             # Make a call to the API
-            more = self.api.get("user", params={"access_token": access_token}).json()
+            resp = json.dumps(self.api.get("user", params={"access_token": access_token}))
+            more = json.loads(resp)
             kwargs = dict(git_id=more["id"], login=more["login"])
             if "email" in more:
                 kwargs["email"] = more["email"]
