@@ -19,6 +19,7 @@ from Hook.ext import HookUI
 
 from tests.make_moke import make_moke
 from tests.github_fixtures import make_fixture
+import json
 
 
 github_user = {
@@ -90,10 +91,10 @@ class BaseTest(TestCase):
 
         with requests_mock.Mocker() as m:
             m.post(github_matcher, text=github_resp)
-            m.get(github_usermatcher, json=github_user)
+            m.get(github_usermatcher, json=github_user, headers=headers)
             self.client.get('/api/github/callback?code=%s' % code)
-            for verb, url, kwargs in extra_mocks:
-                m.register_uri(verb, re.compile(url), **kwargs)
+            self.register_mocks(mocker=m, extra_mocks=extra_mocks)
+
 
             # at this point we are logged in
             try:
@@ -108,12 +109,21 @@ class BaseTest(TestCase):
             extra_mocks = []
 
         with requests_mock.Mocker() as m:
-            for verb, url, kwargs in extra_mocks:
-                m.register_uri(verb, re.compile(url), **kwargs)
-            self.__mocks__ = m
+            self.register_mocks(m, extra_mocks)
             # at this point we are logged in
             try:
                 yield
             finally:
                 # logging out
                 pass
+
+    def register_mocks(self, mocker, extra_mocks):
+        for verb, url, kwargs in extra_mocks:
+            if "json" in kwargs:
+                if "headers" in kwargs:
+                    kwargs["headers"].update({'Content-Type': "application/json"})
+                else:
+                    kwargs["headers"] = {'Content-Type': "application/json"}
+#                kwargs["json"] = json.dumps(kwargs["json"])
+            mocker.register_uri(verb, re.compile(url), **kwargs)
+            self.__mocks__ = mocker

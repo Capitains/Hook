@@ -167,7 +167,10 @@ class TestAPI(BaseTest):
             data=dumps(deepcopy(self.pr_push)),
             content_type='application/json',
             headers={
-                "HookTest-Secure-X": self.hook.make_hooktest_signature(dumps(deepcopy(self.pr_push)).encode())
+                "HookTest-Secure-X": self.hook.make_hooktest_signature(
+                    dumps(deepcopy(self.pr_push)).encode(),
+                    secret=self.Mokes.latinLit.travis_env
+                )
             }
         )
         self.assertEqual(reply.status_code, 404, "Unknown Repository")
@@ -180,7 +183,8 @@ class TestAPI(BaseTest):
             content_type='application/json',
             headers={
                 "HookTest-Secure-X": self.hook.make_hooktest_signature(
-                    d.encode()
+                    d.encode(),
+                    secret=self.Mokes.latinLit.travis_env
                 )
             }
         )
@@ -198,7 +202,15 @@ class TestAPI(BaseTest):
                         headers=self.fixtures['./tests/fixtures/pr.comment.response.json'][1],
                         status_code=201
                     )
-                 )
+                 ),
+                (
+                    "get",
+                    re.compile("api.github.com/repos/PerseusDl/canonical-latinLit/pulls/5"),
+                    dict(
+                        json=self.fixtures['./tests/fixtures/commit.pull_request.response.json'][0],
+                        status_code=200
+                    )
+                )
         ]):
             reply = self.client.post(
                 "/api/hook/v2.0/user/repositories/PerseusDl/canonical-latinLit",
@@ -206,7 +218,8 @@ class TestAPI(BaseTest):
                 content_type='application/json',
                 headers={
                     "HookTest-Secure-X": self.hook.make_hooktest_signature(
-                        dumps(self.pr_push).encode()
+                        dumps(self.pr_push).encode(),
+                        secret=self.Mokes.latinLit.travis_env
                     )
                 }
             )
@@ -254,15 +267,25 @@ class TestAPI(BaseTest):
                         headers=self.fixtures['./tests/fixtures/commit.comment.response.json'][1],
                         status_code=201
                     )
-                 )
+                 ),
+                (
+                    "get",
+                    re.compile("api.github.com/repos/PerseusDl/canonical-latinLit/commits/24880f5078f0c1e84653b5fa8e6c6985fc411d57"),
+                    dict(
+                        json=self.fixtures['./tests/fixtures/commit.push.response.json'][0],
+                        status_code=200
+                    )
+                )
         ]):
+            #https://avatars2.githubusercontent.com/u/1929830?v=3
             reply = self.client.post(
                 "/api/hook/v2.0/user/repositories/PerseusDl/canonical-latinLit",
                 data=dumps(self.comment_push),
                 content_type='application/json',
                 headers={
                     "HookTest-Secure-X": self.hook.make_hooktest_signature(
-                        dumps(self.comment_push).encode()
+                        dumps(self.comment_push).encode(),
+                        secret=self.Mokes.latinLit.travis_env
                     )
                 }
             )

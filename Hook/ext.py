@@ -485,28 +485,15 @@ class HookUI(object):
             raise BadRequest(description="No post data")
         elif request.content_type != "application/json":
             raise BadRequest(description="Data is not json encoded")
-        elif self.check_hooktest_signature(request.data, request.headers.get("HookTest-Secure-X")) is False:
+
+        repo = self.Models.Repository.get_or_raise(owner, repository)
+        if self.check_hooktest_signature(request.data, repo, request.headers.get("HookTest-Secure-X")) is False:
             raise Forbidden(description="Signature is not right")
 
         repo = self.Models.Repository.get_or_raise(owner, repository)
         data = json.loads(request.data.decode('utf-8'))
 
         # Format of expected data :
-        """
-
-        {
-            "build_uri": env["TRAVIS_BUILD_ID"],
-            "build_id": env["TRAVIS_BUILD_ID"],
-            "event_type": "pull_request" or "push",
-            "commit_sha": "iujodfnipofddef",
-            "source": PR identifier or branch,
-
-            "user"
-            "avatar"
-
-        }
-
-        """
         try:
             kwargs = dict(
                 # Information about the commit
@@ -515,10 +502,6 @@ class HookUI(object):
                 travis_build_id=data["build_id"],
                 sha=data["commit_sha"],
                 event_type=data["event_type"],
-
-                # Information about the User
-                user=data["user"],
-                avatar=data["avatar"],
 
                 # Information about the test
                 texts_total=data["texts_total"],
@@ -534,6 +517,9 @@ class HookUI(object):
         except KeyError as E:
             raise BadRequest(description="Missing parameter " + str(E))
 
+        # Information about the User
+        kwargs.update(self.get_user_information_from_github(kwargs, owner, repository))
+
         test, diff = repo.register_test(**kwargs)
         if data["event_type"] == "push":
             uri = "repos/{owner}/{repository}/commits/{sha}/comments".format(
@@ -545,34 +531,68 @@ class HookUI(object):
             )
 
         # Commenting
-        self.comment(test, diff, uri=uri)
+        if diff is not None:
+            self.comment(test, diff, uri=uri)
         return {
             "status": "success",
             "link": self.url_for(".repository_test", owner=owner, repository=repository, uuid=test.uuid)
         }
 
-    def make_hooktest_signature(self, body):
+    def get_user_information_from_github(self, data, owner, repository):
+        """ Retrieve information about the current user
+
+        :param data: Current data built for RepoTest
+        :param owner:  Name of the owner
+        :param repository: Name of the repository
+        :return: Dictionary with user(name) key and avatar key
+        """
+        slug = owner+"/"+repository
+        if data["event_type"] == 'pull_request':
+            status = self.api.get(
+                "repos/{slug}/pulls/{_id}".format(
+                    slug=slug,
+                    _id=data["source"]),
+                    params={
+                        'access_token': self.commenter_github_access_token
+                    }
+            )
+            return {"user": status['user']['login'], "avatar": status['user']['avatar_url']}
+        elif data["event_type"] == 'push':
+            status = self.api.get(
+                "repos/{slug}/commits/{_id}".format(
+                    slug=slug,
+                    _id=data["sha"]
+                ),
+                params={
+                    'access_token': self.commenter_github_access_token
+                }
+            )
+            return {"user": status['author']['login'], "avatar": status['author']['avatar_url']}
+
+    def make_hooktest_signature(self, body, secret):
         """ Check the signature sent by a request with the body
 
         :param body: Raw body of the request
+        :param secret: Secret specific to the repository
         :return: Signature for HookTest
         """
         return '{0}'.format(
             hmac.new(
-                bytes(self.hooktest_secret, encoding="utf-8"),
+                bytes(secret, encoding="utf-8"),
                 body,
                 hashlib.sha1
             ).hexdigest()
         )
 
-    def check_hooktest_signature(self, body, hook_signature):
+    def check_hooktest_signature(self, body, repo, hook_signature):
         """ Check the signature sent by a request with the body
 
         :param body: Raw body of the request
+        :param repo: Repository for which we check the signature
         :param hook_signature: Signature sent by github
         :return: Equality indicator
         """
-        if self.make_hooktest_signature(body) == hook_signature:
+        if self.make_hooktest_signature(body, repo.travis_env) == hook_signature:
             return True
         else:
             return False
@@ -595,6 +615,8 @@ class HookUI(object):
 
         :param username: Name of the repository owner
         :param reponame: Name of the repository
+        :param language: Language we want wordcount from
+        :param uuid: Id of the test we want the name from
         :return: (Template, Kwargs, Status Code, Headers)
         :rtype: (str, dict, int, dict)
         """
@@ -782,7 +804,7 @@ class HookUI(object):
 
         output = self.api.post(uri, data=data, params=params)
 
-        test.comment_uri = output.json()["html_url"]
+        test.comment_uri = output["html_url"]
         self.db.session.add(test)
         self.db.session.commit()
 
@@ -805,7 +827,7 @@ class HookUI(object):
 
         if user is None:
             # Make a call to the API
-            more = self.api.get("user", params={"access_token": access_token}).json()
+            more = self.api.get("user", params={"access_token": access_token})
             kwargs = dict(git_id=more["id"], login=more["login"])
             if "email" in more:
                 kwargs["email"] = more["email"]
@@ -909,15 +931,3 @@ class HookUI(object):
         if rv is None:
             raise NotFound(description="Unknown repository")
         return rv
-
-
-def get_user(self, owner, repo, event_type, event_id):
-    """
-
-    :param self:
-    :param owner:
-    :param repo:
-    :param event_type:
-    :param event_id:
-    :return:
-    """
