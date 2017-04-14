@@ -53,7 +53,7 @@ def model_maker(db, prefix=""):
         :type refreshed: datetime
 
         """
-        uuid = db.Column(db.Integer, primary_key=True)
+        uuid = db.Column(db.Integer, primary_key=True, autoincrement=True)
         email = db.Column(db.String(255), unique=True, nullable=True)
         login = db.Column(db.String(255), unique=True, nullable=False)
         git_id = db.Column(db.String(255))
@@ -108,7 +108,7 @@ def model_maker(db, prefix=""):
 
     class Repository(db.Model):
         """ Just as a cache of available repositories for user """
-        uuid = db.Column(db.Integer, primary_key=True)
+        uuid = db.Column(db.Integer, primary_key=True, autoincrement=True)
         owner = db.Column(db.String(200), nullable=False)
         name = db.Column(db.String(200), nullable=False)
         active = db.Column(db.Boolean, nullable=False, default=False)
@@ -289,7 +289,7 @@ def model_maker(db, prefix=""):
 
     class RepoTest(db.Model):
         """ Complete repository status """
-        uuid = db.Column(db.Integer, primary_key=True)
+        uuid = db.Column(db.Integer, primary_key=True, autoincrement=True)
         repository = db.Column(db.Integer, db.ForeignKey('repository.uuid'), nullable=False)
 
         run_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
@@ -520,7 +520,7 @@ def model_maker(db, prefix=""):
 
     class UnitTest(db.Model):
         """ Units parts of model """
-        uuid = db.Column(db.Integer, primary_key=True)
+        uuid = db.Column(db.Integer, primary_key=True, autoincrement=True)
         test_id = db.Column(db.Integer, db.ForeignKey("repo_test.uuid"))
         path = db.Column(db.String(400), nullable=False)
         status = db.Column(db.Boolean, nullable=False)
@@ -530,7 +530,7 @@ def model_maker(db, prefix=""):
 
     class WordCount(db.Model):
         """ Units parts of model """
-        uuid = db.Column(db.Integer, primary_key=True)
+        uuid = db.Column(db.Integer, primary_key=True, autoincrement=True)
         test_id = db.Column(db.Integer, db.ForeignKey("repo_test.uuid"))
         lang = db.Column(db.String(5), nullable=False)
         count = db.Column(db.Integer, nullable=False)
