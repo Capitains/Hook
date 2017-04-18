@@ -823,21 +823,23 @@ class HookUI(object):
         if access_token is None:
             return redirect(error)
 
-        user = self.Models.User.query.filter(self.Models.User.github_access_token == access_token).first()
+        more = self.api.get("user", params={"access_token": access_token})
+
+        user = self.Models.User.query.filter(self.Models.User.git_id == more["id"], self.Models.User.login == more["login"]).first()
 
         if user is None:
             # Make a call to the API
-            more = self.api.get("user", params={"access_token": access_token})
             kwargs = dict(git_id=more["id"], login=more["login"])
             if "email" in more:
                 kwargs["email"] = more["email"]
 
             user = self.Models.User(
-                github_access_token=access_token,
                 **kwargs
             )
             self.db.session.add(user)
-            self.db.session.commit()
+
+        user.github_access_token = access_token
+        self.db.session.commit()
 
         login_user(user)
         return redirect(success)
