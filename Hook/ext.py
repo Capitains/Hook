@@ -825,11 +825,11 @@ class HookUI(object):
 
         more = self.api.get("user", params={"access_token": access_token})
 
-        user = self.Models.User.query.filter(self.Models.User.git_id == more["id"], self.Models.User.login == more["login"]).first()
+        user = self.Models.User.query.filter(self.Models.User.git_id == str(more["id"]), self.Models.User.login == more["login"]).first()
 
         if user is None:
             # Make a call to the API
-            kwargs = dict(git_id=more["id"], login=more["login"])
+            kwargs = dict(git_id=str(more["id"]), login=more["login"])
             if "email" in more:
                 kwargs["email"] = more["email"]
 
