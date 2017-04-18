@@ -19,17 +19,6 @@ from Hook.ext import HookUI
 
 from tests.make_moke import make_moke
 from tests.github_fixtures import make_fixture
-import json
-
-
-github_user = {
-    "login": "octocat",
-    "id": 1,
-    "avatar_url": "https://github.com/images/error/octocat_happy.gif",
-    "gravatar_id": "",
-    "url": "https://api.github.com/users/octocat",
-    "email": "octocat@github.com"
-}
 
 
 class BaseTest(TestCase):
@@ -87,6 +76,24 @@ class BaseTest(TestCase):
         github_resp = 'access_token=%s' % access_token
         github_matcher = re.compile('github.com/')
         github_usermatcher = re.compile('https://api.github.com/user')
+
+        github_user = {
+            "login": "octocat",
+            "id": 1,
+            "avatar_url": "https://github.com/images/error/octocat_happy.gif",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/octocat",
+            "email": "octocat@github.com"
+        }
+        if access_token in ["nbiousndegoijubdognlksdngndsgmngds"]:
+            github_user = {
+                "login": "ponteineptique",
+                "id": "GitSuperID",
+                "avatar_url": "https://github.com/images/error/octocat_happy.gif",
+                "gravatar_id": "",
+                "url": "https://api.github.com/users/ponteineptique",
+                "email": "ponteineptique"
+            }
         headers = {'Content-Type': 'application/json'}
 
         with requests_mock.Mocker() as m:
