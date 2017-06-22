@@ -98,8 +98,8 @@ def model_maker(db, prefix=""):
             return str(self.uuid)
 
         def remove_authorship(self, _commit=True):
-            for repo in self.repositories:
-                self.repositories.remove(repo)
+            for repository in self.dyn_repositories:
+                self.dyn_repositories.remove(repository)
             if _commit is True:
                 db.session.commit()
 
