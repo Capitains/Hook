@@ -523,7 +523,10 @@ class HookUI(object):
             raise BadRequest(description="Missing parameter " + str(E))
 
         # Information about the User
-        kwargs.update(self.get_user_information_from_github(kwargs, owner, repository))
+        try:
+            kwargs.update(self.get_user_information_from_github(kwargs, owner, repository))
+        except:
+            raise Exception("Error on " + request.data.decode('utf-8'))
 
         test, diff = repo.register_test(**kwargs)
         if data["event_type"] == "push":
