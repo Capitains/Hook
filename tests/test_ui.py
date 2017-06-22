@@ -513,6 +513,7 @@ class TestGithubCommunication(BaseTest):
         self.Mokes.add_repo_to_pi()
         response = self.client.get("/repo/PerseusDl/canonical-latinLit/2").data.decode()
         index = BeautifulSoup(response, 'html.parser')
+        self.assertEqual(len(index.select('div.alert')), 0, "There is no error")
         self.assertEqual(index.select('dd[aria-label="Coverage"]')[0].text, "99.85")
         self.assertEqual(index.select('dd[aria-label="Text Count"]')[0].text, "636/637")
         self.assertEqual(index.select('dd[aria-label="Metadata Count"]')[0].text, "718/720")
@@ -577,3 +578,13 @@ class TestGithubCommunication(BaseTest):
             self.assertEqual(len(travis_env2), 1, "Sha should be shown when not connected")
             self.assertEqual(len(travis_env2[0].text), 40)
             self.assertNotEqual(travis_env1[0].text, travis_env2[0].text, "Sha should be different")
+
+    def test_single_repotest_wrong_id(self):
+        """ Test that index links all known repositories """
+        self.Mokes.add_repo_to_pi()
+        response = self.client.get("/repo/PerseusDl/canonical-latinLit/78c0bf1c-0266-41ee-be1e-ff79b2768c3e").data.decode()
+        index = BeautifulSoup(response, 'html.parser')
+        self.assertEqual(
+            index.select('div.alert')[0].text.strip(),
+            "The ID you gave is a legacy ID (78c0bf1c-0266-41ee-be1e-ff79b2768c3e). It is not accessible anymore"
+        )
