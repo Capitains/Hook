@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='capitains-hook',
-    version="1.0.0",
+    version="1.0.1",
     description='Hook Flask App for Github/CTS repositories',
     url='http://github.com/Capitains/Hook',
     author='Thibault Clerice',
