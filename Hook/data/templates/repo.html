@@ -27,6 +27,11 @@
               {% endif %}
           </h1>
       </header>
+      {% if error %}
+        <div class="row alert alert-danger" role="alert">
+            {{error}}
+        </div>
+      {% endif %}
       <div class="row">
           {% if repository.has_rights(current_user) %}
           <div class="col-md-4">

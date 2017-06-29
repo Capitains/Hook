@@ -247,11 +247,16 @@ class HookUI(object):
         :param repository: Name of the repository
         :param uuid: UUID of the test
         """
-        kwargs, status, header = self.repo_report(owner, repository, uuid)
-        if status == 200:
-            return render_template("report.html", **kwargs)
+        if uuid.isnumeric():
+            kwargs, status, header = self.repo_report(owner, repository, uuid)
+            if status == 200:
+                return render_template("report.html", **kwargs)
+            else:
+                return kwargs, status, header
         else:
-            return kwargs, status, header
+            kwargs = self.read_repo(owner, repository, request)
+            kwargs["error"] = "The ID you gave is a legacy ID ({}). It is not accessible anymore".format(uuid)
+            return render_template("repo.html", **kwargs)
 
     def r_api_hooktest_endpoint(self, owner, repository):
         """ Route HookTest endpoint
@@ -518,7 +523,10 @@ class HookUI(object):
             raise BadRequest(description="Missing parameter " + str(E))
 
         # Information about the User
-        kwargs.update(self.get_user_information_from_github(kwargs, owner, repository))
+        try:
+            kwargs.update(self.get_user_information_from_github(kwargs, owner, repository))
+        except:
+            raise Exception("Error on " + request.data.decode('utf-8'))
 
         test, diff = repo.register_test(**kwargs)
         if data["event_type"] == "push":

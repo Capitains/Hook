@@ -188,6 +188,88 @@ class TestGithubCommunication(BaseTest):
                 "Old repos should have been cleared, new ones should be there !"
             )
 
+        with self.logged_in(
+            access_token="nbiousndegoijubdognlksdngndsgmngds",
+            extra_mocks=[
+                (
+                    "get",
+                    "https://api.github.com/user/repos",
+                    dict(
+                        json=self.fixtures['./tests/fixtures/repos_ponteineptique.response.json'][0],
+                        headers=self.fixtures['./tests/fixtures/repos_ponteineptique.response.json'][1]
+                    )
+                 ),
+                (
+                    "get",
+                    re.compile("https://api.github.com/user/repos\?.*page=2"),
+                    dict(
+                        json=self.fixtures['./tests/fixtures/repos_ponteineptique.page2.alt2.response.json'][0],
+                        headers=self.fixtures['./tests/fixtures/repos_ponteineptique.page2.alt2.response.json'][1]
+                    )
+                 )
+            ]
+        ):
+            # We check it was saved
+            repositories = loads(self.client.get("/api/hook/v2.0/user/repositories").data.decode())
+            repositories["repositories"] = sorted(repositories["repositories"], key=lambda x: x["name"])
+            self.assertEqual(
+                repositories,
+                {
+                    "repositories": [
+                        {'name': 'canonical-greekLit', 'owner': 'PerseusDL'},
+                        {'name': 'canonical-latinLit', 'owner': 'PerseusDL'},
+                        {'name': 'canonical-norseLit', 'owner': 'PerseusDL'},
+                        {'name': 'octodog', 'owner': 'octocat'},
+                        {'name': 'oneKGreek', 'owner': 'ponteineptique'}
+                    ]
+                },
+                "When logging in back, we should have the same old repos"
+            )
+
+            # We update by posting
+            repositories = loads(self.client.post("/api/hook/v2.0/user/repositories").data.decode())
+            repositories["repositories"] = sorted(repositories["repositories"], key=lambda x: x["name"])
+            self.assertEqual(
+                repositories,
+                {
+                    'repositories': [
+                        {'name': 'Ahab', 'owner': 'Capitains'},
+                        {'name': 'Capitains.github.io', 'owner': 'Capitains'},
+                        {'name': 'Cavern', 'owner': 'Capitains'},
+                        {'name': 'ahab-legacy-existdb', 'owner': 'Capitains'},
+                        {'name': 'ahab-legacy-python', 'owner': 'Capitains'},
+                        {'name': 'alignment-editor', 'owner': 'alpheios-project'},
+                        {'name': 'alpheios-docs', 'owner': 'alpheios-project'},
+                        {'name': 'alpheios-flask', 'owner': 'alpheios-project'},
+                        {'name': 'alpheios5', 'owner': 'alpheios-project'},
+                        {'name': 'angular-nemo', 'owner': 'Capitains'},
+                        {'name': 'arethusa', 'owner': 'alpheios-project'},
+                        {'name': 'arethusa-cli', 'owner': 'alpheios-project'},
+                        {'name': 'arethusa-configs', 'owner': 'alpheios-project'},
+                        {'name': 'arethusa-example-data', 'owner': 'alpheios-project'},
+                        {'name': 'arethusa-experiments', 'owner': 'alpheios-project'},
+                        {'name': 'arethusa-ngdocs-generator', 'owner': 'alpheios-project'},
+                        {'name': 'arethusa-server', 'owner': 'alpheios-project'},
+                        {'name': 'basic-reader', 'owner': 'alpheios-project'},
+                        {'name': 'canonical-greekLit', 'owner': 'PerseusDL'},
+                        {'name': 'canonical-latinLit', 'owner': 'PerseusDL'},
+                        {'name': 'canonical-norseLit', 'owner': 'PerseusDL'},
+                        {'name': 'chrome-wrapper', 'owner': 'alpheios-project'},
+                        {'name': 'cookiecutter-guidelines', 'owner': 'Capitains'},
+                        {'name': 'cts-api', 'owner': 'alpheios-project'},
+                        {'name': 'ctsworklist', 'owner': 'alpheios-project'},
+                        {'name': 'dummy1', 'owner': 'alpheios-project'},
+                        {'name': 'edit-utils', 'owner': 'alpheios-project'},
+                        {'name': 'inflection-analysis-prototype', 'owner': 'alpheios-project'},
+                        {'name': 'morphlib', 'owner': 'alpheios-project'},
+                        {'name': 'morphwrappers', 'owner': 'alpheios-project'},
+                        {'name': 'nemo_arethusa_plugin', 'owner': 'alpheios-project'},
+                        {'name': 'schemas', 'owner': 'alpheios-project'},
+                        {'name': 'tei-digital-age', 'owner': 'alpheios-project'}
+            ]},
+                "Github API is parsed correctly"
+            )
+
     def test_index_repositories(self):
         """ Test that index links all known repositories """
         self.Mokes.add_repo_to_pi()
@@ -431,6 +513,7 @@ class TestGithubCommunication(BaseTest):
         self.Mokes.add_repo_to_pi()
         response = self.client.get("/repo/PerseusDl/canonical-latinLit/2").data.decode()
         index = BeautifulSoup(response, 'html.parser')
+        self.assertEqual(len(index.select('div.alert')), 0, "There is no error")
         self.assertEqual(index.select('dd[aria-label="Coverage"]')[0].text, "99.85")
         self.assertEqual(index.select('dd[aria-label="Text Count"]')[0].text, "636/637")
         self.assertEqual(index.select('dd[aria-label="Metadata Count"]')[0].text, "718/720")
@@ -495,3 +578,13 @@ class TestGithubCommunication(BaseTest):
             self.assertEqual(len(travis_env2), 1, "Sha should be shown when not connected")
             self.assertEqual(len(travis_env2[0].text), 40)
             self.assertNotEqual(travis_env1[0].text, travis_env2[0].text, "Sha should be different")
+
+    def test_single_repotest_wrong_id(self):
+        """ Test that index links all known repositories """
+        self.Mokes.add_repo_to_pi()
+        response = self.client.get("/repo/PerseusDl/canonical-latinLit/78c0bf1c-0266-41ee-be1e-ff79b2768c3e").data.decode()
+        index = BeautifulSoup(response, 'html.parser')
+        self.assertEqual(
+            index.select('div.alert')[0].text.strip(),
+            "The ID you gave is a legacy ID (78c0bf1c-0266-41ee-be1e-ff79b2768c3e). It is not accessible anymore"
+        )
